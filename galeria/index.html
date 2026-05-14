@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NyanHappi12 — Galeria Obrazów (2026)</title>
+
+  <!-- Google Fonts -->
+<link rel="icon" type="image/png" href="https://nyanhappi12.github.io/site_files/NyanHappi12_icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Luckiest+Guy&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+
+  <style>
+  :root{
+    --bg:#071225;
+    --card:rgba(255,255,255,0.95);
+    --muted:#9aa4b2;
+    --accent-1: #ff6fb5;
+    --accent-2: #7c4dff;
+    --glass: rgba(255,255,255,0.06);
+  }
+  [data-theme="light"]{
+    --bg:#f7fbf8;
+    --card:#ffffff;
+    --muted:#55606a;
+    --glass: rgba(0,0,0,0.04);
+  }
+
+  html,body{height:100%}
+  body{
+    margin:0;font-family:"Poppins",system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    background: linear-gradient(180deg,#071225 0%, #021017 100%); color: #fff;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
+  [data-theme="light"] body{
+    background: linear-gradient(180deg,#f8fafc 0%, #ffffff 100%);
+    color:#0b1220;
+  }
+
+  /* subtle snow overlay (holiday) */
+  .snow-wrap{pointer-events:none; position:fixed; inset:0; z-index:80; opacity:0.12}
+  @keyframes fall{
+    0% { transform: translateY(-10vh) translateX(0) }
+    100% { transform: translateY(110vh) translateX(20px) }
+  }
+  .snow{position:absolute; width:6px; height:6px; background:rgba(255,255,255,0.95); border-radius:999px; animation: fall linear infinite}
+
+  /* Topbar */
+  .topbar{
+    position:fixed; left:20px; right:20px; top:16px; z-index:40;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit}
+  .brand img{width:56px;height:56px;border-radius:999px;object-fit:cover; border:2px solid rgba(255,255,255,0.06)}
+  .brand .title{font-weight:700; font-size:20px; letter-spacing:0.4px}
+  .brand .title .logo-small{font-family:"Luckiest Guy"; font-size:22px; display:inline-block; margin-left:4px}
+
+  /* menu button */
+  .menu-btn{
+    width:48px;
+    height:48px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,0.08);
+    cursor:pointer;
+    color:#ffffff;
+    transition: transform .15s ease, color .25s ease, background .25s ease;
+  }
+  [data-theme="light"] .menu-btn{ color:#0b1220; background:rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.08); }
+  .menu-btn:hover{ transform: scale(1.05) }
+
+  /* drawer */
+  .drawer-wrap{position:fixed; inset:0; z-index:50; pointer-events:none}
+  .drawer-backdrop{position:absolute; inset:0; background:rgba(2,6,23,0.45); opacity:0; transition:opacity .35s; pointer-events:none}
+  .drawer{position:fixed; left:0; top:0; height:100%; width:360px; max-width:85%; padding:22px;
+    transform:translateX(-110%); transition:transform 600ms cubic-bezier(.2,.9,.2,1);
+    backdrop-filter: blur(8px); border-right:1px solid rgba(255,255,255,0.04);
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    pointer-events:auto;
+    color:inherit;
+  }
+  [data-theme="light"] .drawer{ background: linear-gradient(180deg, rgba(10,20,30,0.03), rgba(255,255,255,0.95)); }
+
+  .drawer-wrap.open .drawer{ transform:translateX(0); transition-duration:2200ms; }
+  .drawer-wrap.open .drawer-backdrop{ opacity:1; pointer-events:auto }
+
+  .drawer .close{position:absolute; right:12px; top:12px; width:36px;height:36px;border-radius:999px; display:grid;place-items:center; cursor:pointer}
+  .drawer nav a{display:flex; gap:10px; align-items:center; padding:10px;border-radius:8px; color:inherit; text-decoration:none; margin-bottom:6px}
+  .drawer nav a:hover{background:rgba(255,255,255,0.03)}
+
+  /* hero */
+  .hero {min-height:36vh; display:flex; align-items:center; justify-content:center; padding:92px 20px 40px 20px; background-size:cover; background-position:center}
+  .hero .card{max-width:980px; width:100%; padding:26px; border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); text-align:center; backdrop-filter: blur(6px)}
+  [data-theme="light"] .hero .card{ background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9)); }
+
+  .hero h1{font-family:"Luckiest Guy"; font-size:38px; margin:0 0 8px; letter-spacing:1px}
+  .hero p{margin:0; opacity:0.95; font-size:16px}
+
+  /* content area (main frame reacts to theme) */
+  .content{
+    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--card);
+    box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+    transition: background .28s ease, border-color .28s ease, box-shadow .28s ease, color .28s ease;
+    max-width:1100px; margin:-36px auto 80px; border-radius:20px; padding:28px; color:inherit;
+  }
+  html[data-theme="light"] .content, body[data-theme="light"] .content, [data-theme="light"] .content {
+    border: 1px solid rgba(0,0,0,0.08);
+    background: var(--card);
+    box-shadow: 0 8px 30px rgba(2,6,23,0.06);
+  }
+  html[data-theme="dark"] .content, body[data-theme="dark"] .content, [data-theme="dark"] .content {
+    border: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+  }
+
+  /* common CTA style (rounded like main site) */
+  .cta{
+    display:inline-block;padding:12px 18px;border-radius:999px;font-weight:600;text-decoration:none;
+    border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit; cursor:pointer;
+    transition:all .22s ease;
+  }
+  .cta.gradient{ background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white; border:0 }
+
+  /* gallery grid (kept but styled to match feelings) */
+  .gallery-grid{ display:grid; grid-template-columns: repeat(4,1fr); gap:14px; margin-top:12px; }
+  .gallery-card{
+    border-radius:14px; overflow:hidden; display:block; text-decoration:none; color:inherit;
+    border:1px solid rgba(255,255,255,0.04);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .25s, background .25s;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+  }
+  .gallery-card:hover{ transform:translateY(-6px); box-shadow:0 18px 40px rgba(2,6,23,0.45) }
+  .gallery-card img{ width:100%; height:200px; object-fit:cover; display:block }
+  .gallery-card .meta-row{ display:flex; justify-content:space-between; align-items:center; padding:10px; gap:8px }
+  .gallery-card .title{ font-weight:600; font-size:14px }
+  .gallery-card .sub{ font-size:13px; color:var(--muted) }
+  .btn-download{ padding:6px 10px; border-radius:999px; font-size:13px; border:1px solid rgba(255,255,255,0.06); background:transparent; cursor:pointer; transition:all .18s }
+  .btn-download[disabled]{ opacity:0.45; cursor:not-allowed }
+
+  /* episodes list styles (for /filmy page parity) */
+  .episodes-list{ display:grid; gap:12px; margin-top:12px; }
+  .episode{
+    display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.03), rgba(255,255,255,0.02));
+    text-decoration:none; color:inherit;
+    border:1px solid rgba(0,0,0,0.03);
+  }
+  .episode img{width:160px; height:90px; object-fit:cover; border-radius:8px; flex-shrink:0}
+  .episode .meta { display:flex; flex-direction:column; gap:4px }
+  .episode .meta .title{font-weight:600}
+  .episode .meta .date{font-size:13px; color:var(--muted)}
+
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .video-card{border-radius:12px; overflow:hidden; background:rgba(0,0,0,0.04); color:inherit; text-decoration:none; display:block}
+  .video-card img{width:100%; height:160px; object-fit:cover; display:block}
+  .video-card .meta{padding:10px;font-size:14px}
+
+  /* sticky countdown */
+  .countdown{ position:fixed; right:18px; bottom:18px; z-index:60; width:220px; border-radius:14px; padding:12px;
+     background:linear-gradient(180deg,rgba(255,255,255,0.04), rgba(255,255,255,0.02)); backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,0.06); text-align:center}
+  [data-theme="light"] .countdown{ background:rgba(0,0,0,0.04) }
+  .countdown .time{font-family:monospace; font-size:20px; margin-top:6px; transition:all .28s ease; }
+
+  /* footer */
+  footer{ text-align:center; color:var(--muted); padding:30px 12px; font-size:13px }
+
+  /* responsive */
+  @media (max-width:1100px){ .gallery-grid{ grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:900px){
+    .grid-3{ grid-template-columns:1fr; }
+    .brand .title{ display:none }
+    .episode img{ width:110px; height:70px }
+  }
+  @media (max-width:800px){ .gallery-grid{ grid-template-columns: repeat(2,1fr); } .gallery-card img{ height:140px } }
+  @media (max-width:480px){ .gallery-grid{ grid-template-columns: 1fr; } .gallery-card img{ height:180px } }
+
+  .material-symbols-rounded{
+    font-variation-settings:
+      'FILL' 0,
+      'wght' 400,
+      'GRAD' 0,
+      'opsz' 24;
+    font-size:22px;
+    line-height:1;
+  }
+  .drawer nav a{ display:flex; align-items:center; gap:12px; }
+
+  /* episodes theme-aware */
+  /* domyślnie dark */
+  #episodes .episode {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  /* jasny motyw */
+  [data-theme="light"] #episodes .episode {
+    background-color: #fff;
+    color: #111;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  /* dark explicit */
+  [data-theme="dark"] #episodes .episode {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+</style>
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <a id="home-link" class="brand" href="/" title="NyanHappi12 — Strona główna">
+      <img id="logo-img" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" alt="logo">
+      <div>
+        <div class="title">NyanHappi12 <span class="logo-small">☆</span></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px">Galeria Obrazów</div>
+      </div>
+    </a>
+
+    <div style="display:flex; gap:10px; align-items:center">
+      <button id="menu-open" class="menu-btn" aria-label="Otwórz menu" title="Menu">
+        <svg width="18" height="14" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- DRAWER -->
+  <div id="drawerWrap" class="drawer-wrap" aria-hidden="true">
+    <div id="drawerBackdrop" class="drawer-backdrop"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Nawigacja">
+      <button id="drawerClose" class="close" aria-label="Zamknij"><strong>✕</strong></button>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px">
+        <img id="drawer-logo" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" style="width:56px;height:56px;border-radius:999px;object-fit:cover">
+        <div>
+          <div style="font-weight:700">NyanHappi12</div>
+          <div style="font-size:12px;color:var(--muted)">Witaj! wybierz stronę</div>
+        </div>
+      </div>
+
+      <nav>
+        <a href="/filmy/"><span class="material-symbols-rounded">smart_display</span>Najnowsze Filmy</a>
+        <a href="/galeria/"><span class="material-symbols-rounded">photo_library</span>Galeria Obrazów</a>
+        <a href="/wydarzenia/"><span class="material-symbols-rounded">schedule</span>Odliczanie Do Wydarzeń</a>
+        <a href="/posty/"><span class="material-symbols-rounded">article</span>Posty</a>
+        <a id="account-link" href="/login/"><span class="material-symbols-rounded">account_circle</span>Konto</a>
+        <a href="/informacje-kontaktowe/"><span class="material-symbols-rounded">contact_mail</span>Informacje & Kontakt</a>
+      </nav>
+
+      <div style="margin-top:18px; font-size:13px; color:var(--muted)">Motyw:</div>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button id="theme-light" class="cta" style="padding:8px 10px">Jasny</button>
+        <button id="theme-dark" class="cta gradient" style="padding:8px 10px">Ciemny</button>
+      </div>
+
+      <div style="margin-top:14px; font-size:12px; color:var(--muted)">Motyw zapisany lokalnie; jeśli jesteś zalogowany zostanie zapisany do konta.</div>
+    </aside>
+  </div>
+
+  <!-- HERO -->
+  <main>
+    <section id="hero" class="hero" style="background-image:url('https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Galeria')">
+      <div class="card">
+        <h1>Galeria Obrazków</h1>
+        <p>Wszystkie obrazy z kolekcji — kliknij, aby zobaczyć pojedynczy obraz.</p>
+      </div>
+    </section>
+
+    <section class="content">
+      <h2 style="margin:0 0 12px">Galeria</h2>
+      <p style="margin:0 0 12px; color:var(--muted)">Obrazy znajdują się w katalogu <code>site_files</code>. Baza danych trzyma metadane w kolekcji <code>images_metadata</code>.</p>
+
+      <div id="gallery" class="gallery-grid" aria-live="polite">
+        <div style="grid-column:1/-1;padding:20px;color:var(--muted)">Ładowanie obrazów...</div>
+      </div>
+
+      <div style="margin-top:18px">
+        <a href="/" class="cta">Wróć do strony głównej</a>
+      </div>
+    </section>
+
+    <footer>
+      <div>© 2026 NyanHappi12 — wszelkie prawa zastrzeżone. Prosimy nie kopiować i nie próbować wyciągać kodu z źródła strony. Dziękuję — NyanHappi12</div>
+      <div style="margin-top:6px; font-size:12px">Motyw: <span id="footer-theme">ciemny</span></div>
+    </footer>
+  </main>
+
+  <!-- STICKY COUNTDOWN -->
+  <div id="countdown" class="countdown" role="status" aria-live="polite">
+    <div style="font-size:12px; font-weight:600">Do następnego odcinka zostało:</div>
+    <div id="countdown-value" class="time">Wczytywanie...</div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script type="module">
+    // CONFIG
+    const CONFIG = {
+      CLOUDINARY: { cloudName: '226846279479333', unsignedPreset: 'NyanHappi' },
+      FIREBASE: {
+        apiKey: "AIzaSyA6B1a0I1m7hXPwblW8diKsW1nnDVmGEP0",
+        authDomain: "nyanhappi12.firebaseapp.com",
+        projectId: "nyanhappi12",
+        storageBucket: "nyanhappi12.firebasestorage.app",
+        messagingSenderId: "197042141276",
+        appId: "1:197042141276:web:d9f1c73f569f9180a40e99",
+        measurementId: "G-RW1PDZR1X5"
+      },
+      YOUTUBE: { API_KEY: "AIzaSyCrdS7Sou5-VsrHTZAgsPA3SSCJP8qHrQk", HANDLE: "@nyanhappi12_cute" }
+    };
+
+    // Firebase imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    const firebaseApp = initializeApp(CONFIG.FIREBASE);
+    try { getAnalytics(firebaseApp); } catch(e){ }
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+
+    // DOM refs
+    const drawerWrap = document.getElementById('drawerWrap');
+    const menuOpen = document.getElementById('menu-open');
+    const drawerClose = document.getElementById('drawerClose');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const accountLink = document.getElementById('account-link');
+    const logoImg = document.getElementById('logo-img');
+    const drawerLogo = document.getElementById('drawer-logo');
+    const hero = document.getElementById('hero');
+    const galleryGrid = document.getElementById('gallery');
+    const footerTheme = document.getElementById('footer-theme');
+    const themeLightBtn = document.getElementById('theme-light');
+    const themeDarkBtn = document.getElementById('theme-dark');
+    const countdownEl = document.getElementById('countdown-value');
+
+    // placeholders
+    const defaultLogo = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png';
+    const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Galeria';
+    if(logoImg) logoImg.src = defaultLogo;
+    if(drawerLogo) drawerLogo.src = defaultLogo;
+    if(hero) hero.style.backgroundImage = `url('${defaultHero}')`;
+
+    // THEME (apply to html + body)
+    const THEME_KEY = 'nh_theme';
+    function applyTheme(theme, persistToFirestore = true){
+      const t = theme === 'light' ? 'light' : 'dark';
+      try{ document.documentElement.setAttribute('data-theme', t); } catch(e){}
+      try{ document.body.setAttribute('data-theme', t); } catch(e){}
+      if(footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
+      try { localStorage.setItem(THEME_KEY, t); } catch(e){}
+      if(persistToFirestore && accountDoc && accountDoc.id){
+        try{ setDoc(doc(db,'accounts',accountDoc.id), { theme: t }, { merge: true }).catch(()=>{}); }catch(e){}
+      }
+    }
+    const saved = (()=>{ try{ return localStorage.getItem(THEME_KEY) }catch(e){return null} })() || 'dark';
+    applyTheme(saved, false);
+    if(themeLightBtn) themeLightBtn.onclick = ()=>applyTheme('light');
+    if(themeDarkBtn) themeDarkBtn.onclick = ()=>applyTheme('dark');
+
+    // Drawer handlers
+    function openDrawer(){ drawerWrap?.classList.add('open'); drawerWrap?.setAttribute('aria-hidden','false'); }
+    function closeDrawer(){ drawerWrap?.classList.remove('open'); drawerWrap?.setAttribute('aria-hidden','true'); }
+    menuOpen?.addEventListener('click', openDrawer);
+    drawerClose?.addEventListener('click', closeDrawer);
+    drawerBackdrop?.addEventListener('click', closeDrawer);
+
+    // Auth handlers (display name in menu)
+    let accountDoc = null;
+    onAuthStateChanged(auth, async (user) => {
+      if(user){
+        const docRef = doc(db,'accounts', user.uid);
+        try{
+          const snap = await getDoc(docRef);
+          if(!snap.exists()){
+            await setDoc(docRef, { display_name: user.displayName || user.email || 'Użytkownik', createdAt: new Date().toISOString() });
+            accountDoc = { display_name: user.displayName || user.email || 'Użytkownik', id: user.uid };
+          } else {
+            accountDoc = { id: snap.id, ...snap.data() };
+          }
+          if(accountLink) { accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`; accountLink.href=`/konto/${accountDoc.id}`; }
+          // if user has saved theme, apply it
+          try{ if(accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); }catch(e){}
+          // add session id param
+          try{ const u = new URL(window.location.href); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); }catch(e){}
+        }catch(e){ console.error(e) }
+      } else {
+        accountDoc = null;
+        if(accountLink){ accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`; accountLink.href = '/login/'; }
+        try{ const u = new URL(window.location.href); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); }catch(e){}
+      }
+    });
+    accountLink?.addEventListener('click', async (e)=> {
+      const user = auth.currentUser;
+      if(!user){ e.preventDefault(); const provider = new GoogleAuthProvider(); try{ await signInWithPopup(auth,provider); }catch(err){ alert('Błąd logowania: '+(err && err.message || err)); } }
+    });
+    accountLink?.addEventListener('contextmenu', async (ev)=>{ ev.preventDefault(); if(confirm('Wylogować?')){ await signOut(auth); alert('Wylogowano'); } });
+
+    // Cloudinary helper (kept)
+    async function uploadToCloudinary(file){
+      const url = `https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY.cloudName}/upload`;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', CONFIG.CLOUDINARY.unsignedPreset);
+      const resp = await fetch(url, { method:'POST', body:fd });
+      if(!resp.ok) throw new Error('Upload failed');
+      return resp.json();
+    }
+
+    // ---------- Gallery: load images from Firestore collection `images_metadata` ----------
+    (async function loadGallery(){
+  if(!galleryGrid) { console.warn('Gallery grid not found'); return; }
+  galleryGrid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted)">Ładowanie obrazów...</div>';
+
+  // helper: bezpiecznie zbuduj URL do pliku w /site_files/ zachowując slashe
+  function buildSiteFileUrl(id){
+    if(!id) return '';
+    // jeśli już jest pełny URL -> zwróć go
+    if(/^https?:\/\//i.test(id)) return id;
+    // jeśli ktoś podał już ścieżkę zaczynającą od /site_files/
+    let path = id;
+    if(path.startsWith('/site_files/')) path = path.slice('/site_files/'.length);
+    // podziel i enkoduj segmenty, żeby poprawnie zakodować spacje, nawiasy, polskie znaki itd.
+    const segments = path.split('/').map(seg => encodeURIComponent(seg));
+    return '/site_files/' + segments.join('/');
+  }
+
+  // helper: escapowanie tekstu do HTML
+  function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  try{
+    const col = collection(db, 'images_metadata');
+    const snaps = await getDocs(col);
+    if(!snaps || snaps.size === 0){
+      galleryGrid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted)">Brak obrazów w kolekcji.</div>';
+      return;
+    }
+
+    // render cards
+    galleryGrid.innerHTML = '';
+    snaps.forEach(docSnap=>{
+      const id = docSnap.id; // traktujemy id jako nazwę pliku / klucz
+      const data = docSnap.data() || {};
+
+      // metadata
+      const title = data.name || id;
+      const owner = data.Owner || data.Username || '—';
+      const uploadedRaw = data.Uploaded;
+      let uploaded = '';
+      try{
+        if(uploadedRaw && typeof uploadedRaw.toDate === 'function') uploaded = (uploadedRaw.toDate()).toLocaleString();
+        else if(typeof uploadedRaw === 'string') uploaded = (new Date(uploadedRaw)).toLocaleString();
+        else if(uploadedRaw) uploaded = new Date(uploadedRaw).toLocaleString();
+      }catch(e){ uploaded = ''; }
+
+      const views = (typeof data.views !== 'undefined') ? String(data.views) : '0';
+      const downloadPerm = !!data.download_permission;
+
+      // preferuj pole imageURL jeśli jest (może być pełnym URL-em lub pathą zaczynającą się od /site_files/)
+      let imgUrl = '';
+      if(data.imageURL && String(data.imageURL).trim()){
+        imgUrl = String(data.imageURL).trim();
+        // jeśli to nie pełny URL i nie zaczyna się od '/', potraktuj jako path i zbuduj pełną ścieżkę
+        if(!/^https?:\/\//i.test(imgUrl) && !imgUrl.startsWith('/')){
+          imgUrl = buildSiteFileUrl(imgUrl);
+        }
+      } else {
+        // fallback: buduj z doc.id
+        imgUrl = buildSiteFileUrl(id);
+      }
+
+      // link do podstrony obrazka (bezpiecznie zakoduj parametr)
+      const pageHref = `/galeria/obrazek/?name=${encodeURIComponent(id)}`;
+
+      // stwórz kartę
+      const a = document.createElement('a');
+      a.className = 'gallery-card';
+      a.href = pageHref;
+      a.title = title;
+      a.setAttribute('aria-label', title);
+
+      a.innerHTML = `
+        <img loading="lazy" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(title)}"
+             onerror="this.onerror=null;this.src='/site_files/placeholder.png'">
+        <div class="meta-row">
+          <div style="flex:1">
+            <div class="title">${escapeHtml(title)}</div>
+            <div class="sub">${escapeHtml(owner)} · ${escapeHtml(uploaded)}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            <div style="font-size:12px;color:var(--muted)">${escapeHtml(views)} views</div>
+            <button class="btn-download" data-filename="${encodeURIComponent(id)}" ${downloadPerm ? '' : 'disabled'} title="${downloadPerm ? 'Pobierz (wymagane logowanie)' : 'Pobieranie wyłączone'}">
+              <span class="material-symbols-rounded">download</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // obsługa download (kliknięcie na przycisk) — używa tego samego buildSiteFileUrl żeby utworzyć prawidłowy link
+      const btn = a.querySelector('.btn-download');
+      if(btn){
+        btn.addEventListener('click', async (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          const fileEnc = btn.getAttribute('data-filename') || '';
+          const filename = decodeURIComponent(fileEnc || '');
+          if(!downloadPerm){
+            alert('Pobieranie tego obrazu jest wyłączone.');
+            return;
+          }
+          const user = auth.currentUser;
+          if(!user){
+            if(confirm('Aby pobrać obraz, musisz się zalogować. Zalogować teraz?')){
+              const provider = new GoogleAuthProvider();
+              try{ await signInWithPopup(auth, provider); } catch(err){ alert('Błąd logowania: ' + (err && err.message || err)); }
+            }
+            return;
+          }
+          // build download URL (bezpieczne kodowanie segmentów)
+          const downloadUrl = buildSiteFileUrl(filename);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        });
+      }
+
+      galleryGrid.appendChild(a);
+    });
+
+  }catch(err){
+    console.error('loadGallery error', err);
+    if(err && (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission')))){
+      galleryGrid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted)">Brak uprawnień do odczytu kolekcji images_metadata — sprawdź reguły Firestore.</div>';
+    } else {
+      galleryGrid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted)">Błąd podczas ładowania obrazów. Sprawdź konsolę.</div>';
+    }
+  }
+})();
+
+          
+    // ---------- helper ----------
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ---------- Countdown (same as other pages) ----------
+    const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
+const STEP = 72 * 60 * 60 * 1000; // 72h
+
+function getNextEpisodeTime() {
+  const now = Date.now();
+  const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
+  return new Date(next);
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function updateCountdown() {
+  const el = document.getElementById('countdown-value');
+  if (!el) return;
+
+  const now = new Date();
+  const target = getNextEpisodeTime();
+
+  const diff = Math.max(0, target - now);
+  const s = Math.floor(diff / 1000) % 60;
+  const m = Math.floor(diff / 60000) % 60;
+  const h = Math.floor(diff / 3600000) % 24;
+  const d = Math.floor(diff / (24 * 3600000));
+
+  const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+
+  el.style.transform = 'translateY(-6px) scale(0.99)';
+  el.style.opacity = '0.85';
+  setTimeout(() => {
+    el.textContent = out;
+    el.style.transform = 'translateY(0) scale(1)';
+    el.style.opacity = '1';
+  }, 120);
+}
+
+updateCountdown();
+setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>
