@@ -1,0 +1,952 @@
+<!doctype html>
+
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NyanHappi12 — Edytuj profil (2026)</title>  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Luckiest+Guy&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"> <link rel="icon" type="image/png" href="https://nyanhappi12.github.io/site_files/NyanHappi12_icon.png">  <style>
+    :root{
+  --bg:#616263;
+  --text:#ffffff;
+  --card:rgba(30,35,45,0.88);
+  --muted:#9aa4b2;
+
+  --glass:rgba(255,255,255,0.06);
+  --accent-1:#ff6fb5;
+  --accent-2:#7c4dff;
+}
+
+[data-theme="light"]{
+  --bg:#f6f9fc;
+  --text:#0b1220;
+  --card:#ffffff;
+  --muted:#55606a;
+
+  --glass:rgba(0,0,0,0.05);
+}
+
+    html,body{height:100%}
+    body{
+      margin:0;font-family:"Poppins",system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,#0b1220 0%, #071025 100%); color:#fff;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    [data-theme="light"] body{
+      background: linear-gradient(180deg,#f8fafc 0%, #ffffff 100%);
+      color:#0b1220;
+    }
+
+    .topbar{
+      position:fixed; left:20px; right:20px; top:16px; z-index:40;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .brand{display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit}
+    .brand img{width:56px;height:56px;border-radius:999px;object-fit:cover;border:2px solid rgba(255,255,255,0.06)}
+    .brand .title{font-weight:700;font-size:20px;letter-spacing:.4px}
+    .brand .title .logo-small{font-family:"Luckiest Guy"; font-size:22px; display:inline-block; margin-left:4px}
+
+    .menu-btn{
+      width:48px;height:48px;display:grid;place-items:center;border-radius:999px;
+      background:rgba(255,255,255,0.08);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.08);
+      cursor:pointer;color:#fff;transition:transform .15s ease,color .25s,background .25s;
+    }
+    [data-theme="light"] .menu-btn{ color:#0b1220; background:rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.08) }
+    .menu-btn:hover{ transform:scale(1.05) }
+
+    .drawer-wrap{position:fixed;inset:0;z-index:60;pointer-events:none}
+    .drawer-backdrop{position:absolute;inset:0;background:rgba(2,6,23,0.45);opacity:0;transition:opacity 420ms ease;pointer-events:none}
+    .drawer{position:fixed;left:0;top:0;height:100%;width:360px;max-width:85%;padding:22px;
+      transform:translateX(-110%);transition:transform 420ms cubic-bezier(.2,.9,.2,1),opacity 300ms ease;
+      backdrop-filter: blur(8px);border-right:1px solid rgba(255,255,255,0.04);
+      background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));pointer-events:auto;color:inherit;
+    }
+    [data-theme="light"] .drawer{ background: linear-gradient(180deg, rgba(10,20,30,0.03), rgba(255,255,255,0.95)); }
+    .drawer-wrap.open .drawer{ transform:translateX(0); opacity:1; }
+    .drawer-wrap.open .drawer-backdrop{ opacity:1; pointer-events:auto }
+    .drawer nav a{
+      display:flex;gap:10px;align-items:center;padding:10px;border-radius:8px;color:inherit;text-decoration:none;margin-bottom:6px
+    }
+    .drawer nav a:hover{background:rgba(255,255,255,0.03)}
+    .drawer nav a{display:flex;align-items:center;gap:12px}
+
+    .hero{
+      min-height:38vh;display:flex;align-items:center;justify-content:center;
+      padding:92px 20px 40px 20px;background-size:cover;background-position:center
+    }
+    .hero .card{
+      max-width:980px;width:100%;padding:26px;border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      text-align:center;backdrop-filter: blur(6px)
+    }
+    [data-theme="light"] .hero .card{ background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9)); }
+    .hero h1{font-family:"Luckiest Guy";font-size:40px;margin:0 0 8px;letter-spacing:1px}
+    .hero p{margin:0;opacity:.95;font-size:16px}
+
+    .content{
+  max-width:1100px;
+  margin:-36px auto 80px;
+  background: var(--card);
+  border-radius:20px;
+  padding:28px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  color: var(--text);
+}
+    [data-theme="light"] .content{ border:1px solid rgba(0,0,0,0.08); }
+
+    .profile-grid{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
+    @media (max-width:920px){ .profile-grid{grid-template-columns:1fr} }
+
+    .panel{
+      border-radius:16px;padding:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.05)
+    }
+    .avatar{
+      width:110px;height:110px;border-radius:999px;object-fit:cover;
+      border:3px solid rgba(255,255,255,0.12);background:#111
+    }
+    .muted{color:var(--muted)}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+    .stat{
+      border-radius:14px;padding:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.05)
+    }
+    .stat .num{font-size:26px;font-weight:700;line-height:1}
+    .stat .lbl{margin-top:6px;font-size:13px;color:var(--muted)}
+
+    .section-title{margin:0 0 12px;font-size:22px}
+
+    .field{
+      width:100%;
+      box-sizing:border-box;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(255,255,255,0.03);
+      color:inherit;
+      outline:none;
+      font:inherit;
+      transition: border-color .2s ease, background .2s ease;
+    }
+    .field:focus{
+      border-color: rgba(124,77,255,.7);
+      background: rgba(255,255,255,0.06);
+    }
+    .textarea{min-height:120px; resize:vertical}
+    .hint{font-size:13px;color:var(--muted);margin-top:6px}
+    .row{display:grid;gap:12px;margin-top:14px}
+
+    .cta{
+      display:inline-block;padding:12px 18px;border-radius:999px;font-weight:600;text-decoration:none;
+      border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;cursor:pointer;
+      transition:all .22s ease
+    }
+    .cta.gradient{background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;border:0}
+    .cta:disabled{opacity:.55;cursor:not-allowed}
+
+    .countdown{
+      position:fixed; right:18px; bottom:18px; z-index:60; width:220px; border-radius:14px; padding:12px;
+      background:rgba(255,255,255,0.07); backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,0.06); text-align:center
+    }
+    [data-theme="light"] .countdown{ background:rgba(0,0,0,0.04) }
+    .countdown .time{font-family:monospace;font-size:20px;margin-top:6px;transition:all .28s ease}
+
+    footer{text-align:center;color:var(--muted);padding:30px 12px;font-size:13px}
+    .material-symbols-rounded{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;font-size:22px;line-height:1}
+
+    .toast{
+      position:fixed; left:50%; top:22%; transform:translateX(-50%); z-index:90;
+      background:linear-gradient(90deg, rgba(0,0,0,0.8), rgba(10,10,20,0.95));
+      color:#fff; padding:12px 16px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.6);
+      opacity:0; pointer-events:none; transition:opacity .2s;
+    }
+    .toast.show{ opacity:1; pointer-events:auto }
+
+    @media (max-width:720px){
+      .stats{grid-template-columns:1fr}
+    }
+  </style></head>
+<body data-theme="dark">
+  <header class="topbar">
+    <a id="home-link" class="brand" href="/" title="NyanHappi12 — Strona główna">
+      <img id="logo-img" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" alt="logo">
+      <div>
+        <div class="title">NyanHappi12 <span class="logo-small">☆</span></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px">Edytuj profil</div>
+      </div>
+    </a>
+    <div style="display:flex; gap:10px; align-items:center">
+      <button id="menu-open" class="menu-btn" aria-label="Otwórz menu" title="Menu">
+        <svg width="18" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>  <div id="drawerWrap" class="drawer-wrap" aria-hidden="true">
+    <div id="drawerBackdrop" class="drawer-backdrop"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Nawigacja">
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px">
+        <img id="drawer-logo" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" style="width:56px;height:56px;border-radius:999px;object-fit:cover">
+        <div>
+          <div style="font-weight:700">NyanHappi12</div>
+          <div style="font-size:12px;color:var(--muted)">Witaj! wybierz stronę</div>
+        </div>
+      </div>
+      <nav>
+        <a href="/filmy/"><span class="material-symbols-rounded">smart_display</span>Najnowsze Filmy</a>
+        <a href="/galeria/"><span class="material-symbols-rounded">photo_library</span>Galeria Obrazów</a>
+        <a href="/wydarzenia/"><span class="material-symbols-rounded">schedule</span>Odliczanie Do Wydarzeń</a>
+        <a href="/posty/"><span class="material-symbols-rounded">article</span>Posty</a>
+        <a id="account-link" href="/login/"><span class="material-symbols-rounded">account_circle</span>Konto</a>
+        <a href="/informacje-kontaktowe/"><span class="material-symbols-rounded">contact_mail</span>Informacje & Kontakt</a>
+      </nav>
+      <div style="margin-top:18px; font-size:13px; color:var(--muted)">Motyw:</div>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button id="theme-light" class="cta" style="padding:8px 10px">Jasny</button>
+        <button id="theme-dark" class="cta gradient" style="padding:8px 10px">Ciemny</button>
+      </div>
+      <div style="margin-top:14px; font-size:12px; color:var(--muted)">Motyw zapisany lokalnie; jeśli jesteś zalogowany, zostanie zapisany do Firestore.</div>
+    </aside>
+  </div>  <main>
+    <section id="hero" class="hero" style="background-image:url('https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Edytuj+profil')">
+      <div class="card">
+        <h1>Edytuj profil</h1>
+        <p>Zmiana nicku, opisu, avatara i motywu dla Twojego konta.</p>
+      </div>
+    </section><section class="content">
+  <div class="profile-grid">
+    <div class="panel">
+      <div style="display:flex; gap:14px; align-items:center">
+        <img id="profileAvatar" class="avatar" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Avatar" alt="avatar">
+        <div>
+          <div style="font-weight:700;font-size:22px" id="profileName">Ładowanie...</div>
+          <div class="muted" id="profileUid">UID: —</div>
+          <div class="muted" id="profileSession">Sesja: —</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="num" id="statMaterials">0</div>
+          <div class="lbl">Opublikowane materiały</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statViews">0</div>
+          <div class="lbl">Łączne wyświetlenia</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statCreated">—</div>
+          <div class="lbl">Konto utworzone</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statTheme">—</div>
+          <div class="lbl">Motyw profilu</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px" class="muted" id="profileBio">Brak opisu profilu.</div>
+    </div>
+
+    <div>
+      <h2 class="section-title">Edytuj dane profilu</h2>
+      <p class="muted" style="margin-top:0">Zmiany zapiszą się <code>na twoim</code> koncie<code>.</code></p>
+
+      <div class="panel">
+        <div class="row">
+          <div>
+            <label for="displayName" class="muted">Nick</label>
+            <input id="displayName" class="field" type="text" placeholder="Np. NyanHappi12">
+            <div class="hint">To będzie wyświetlana nazwa profilu.</div>
+          </div>
+
+          <div>
+            <label for="bio" class="muted">Opis profilu</label>
+            <textarea id="bio" class="field textarea" placeholder="Napisz kilka słów o sobie..."></textarea>
+          </div>
+
+          <div>
+            <label for="avatarUrl" class="muted">URL avatara</label>
+            <input id="avatarUrl" class="field" type="text" placeholder="https://...">
+            <div class="hint">Jeśli puste, zostanie domyślny avatar.</div>
+          </div>
+
+          <div>
+            <label for="themeSelect" class="muted">Motyw profilu</label>
+            <select id="themeSelect" class="field">
+              <option value="dark">Ciemny</option>
+              <option value="light">Jasny</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px">
+          <button id="saveBtn" class="cta gradient">
+            <span class="material-symbols-rounded">save</span>
+            Zapisz zmiany
+          </button>
+          <button id="backBtn" class="cta">Wróć do profilu</button>
+        </div>
+
+        <div id="statusMsg" class="hint" style="margin-top:14px">Ładowanie sesji...</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px">
+    <a href="/" class="cta">Wróć do strony głównej</a>
+  </div>
+</section>
+
+<footer>
+  <div>© 2026 NyanHappi12 — wszelkie prawa zastrzeżone.</div>
+  <div style="margin-top:6px;font-size:12px">Motyw: <span id="footer-theme">ciemny</span></div>
+</footer>
+
+  </main>  <div id="countdown" class="countdown" role="status" aria-live="polite">
+    <div style="font-size:12px;font-weight:600">Do następnego odcinka zostało:</div>
+    <div id="countdown-value" class="time">Wczytywanie...</div>
+  </div>  <div id="toast" class="toast" role="alert" aria-live="assertive"></div>  <script type="module">
+    const CONFIG = {
+      FIREBASE: {
+        apiKey: "AIzaSyA6B1a0I1m7hXPwblW8diKsW1nnDVmGEP0",
+        authDomain: "nyanhappi12.firebaseapp.com",
+        projectId: "nyanhappi12",
+        storageBucket: "nyanhappi12.firebasestorage.app",
+        messagingSenderId: "197042141276",
+        appId: "1:197042141276:web:d9f1c73f569f9180a40e99",
+        measurementId: "G-RW1PDZR1X5"
+      }
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    const app = initializeApp(CONFIG.FIREBASE);
+    try { getAnalytics(app); } catch (e) {}
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const drawerWrap = document.getElementById('drawerWrap');
+    const menuOpen = document.getElementById('menu-open');
+    const drawerClose = document.getElementById('drawerClose');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const accountLink = document.getElementById('account-link');
+    const footerTheme = document.getElementById('footer-theme');
+    const themeLightBtn = document.getElementById('theme-light');
+    const themeDarkBtn = document.getElementById('theme-dark');
+    const toast = document.getElementById('toast');
+
+    const profileTitle = document.getElementById('profileTitle');
+    const profileSubtitle = document.getElementById('profileSubtitle');
+    const profileAvatar = document.getElementById('profileAvatar');
+    const profileName = document.getElementById('profileName');
+    const profileUid = document.getElementById('profileUid');
+    const profileSession = document.getElementById('profileSession');
+    const profileBio = document.getElementById('profileBio');
+    const profileTheme = document.getElementById('statTheme');
+    const profileCreated = document.getElementById('statCreated');
+    const statMaterials = document.getElementById('statMaterials');
+    const statViews = document.getElementById('statViews');
+    const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('saveBtn');
+    const backBtn = document.getElementById('backBtn');
+    const displayNameInput = document.getElementById('displayName');
+    const bioInput = document.getElementById('bio');
+    const avatarUrlInput = document.getElementById('avatarUrl');
+    const themeSelect = document.getElementById('themeSelect');
+    const countdownValue = document.getElementById('countdown-value');
+    const homeLink = document.getElementById('home-link');
+    const logoImg = document.getElementById('logo-img');
+    const drawerLogo = document.getElementById('drawer-logo');
+    const hero = document.getElementById('hero');
+
+    const THEME_KEY = 'nh_theme';
+    const SESSION_KEY = 'nh_session_id';
+
+    const defaultLogo = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png';
+    const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Edytuj+profil';
+    const fallbackAvatar = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Avatar';
+
+    let sessionAccountDoc = null;
+    let profileAccountDoc = null;
+    let allowedToEdit = false;
+
+    function toastMsg(msg) {
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function safeText(v, fallback = '—') {
+      const s = String(v ?? '').trim();
+      return s ? s : fallback;
+    }
+
+    function getUrlIds() {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId =
+        params.get('sessionid') ||
+        params.get('session_id') ||
+        (() => { try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; } })();
+
+      const profileId =
+        params.get('profileid') ||
+        params.get('profile_id') ||
+        sessionId;
+
+      return { sessionId, profileId };
+    }
+
+    function setUrlIds(sessionId, profileId) {
+      const u = new URL(window.location.href);
+      if (sessionId) u.searchParams.set('sessionid', sessionId); else u.searchParams.delete('sessionid');
+      if (profileId) u.searchParams.set('profileid', profileId); else u.searchParams.delete('profileid');
+      window.history.replaceState({}, '', u.toString());
+      try {
+        if (sessionId) localStorage.setItem(SESSION_KEY, sessionId);
+        else localStorage.removeItem(SESSION_KEY);
+      } catch (e) {}
+    }
+
+    function setAccountMenuLabel(name, uid) {
+      if (!accountLink) return;
+      if (name && uid) {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${name}`;
+        accountLink.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || uid)}&profileid=${encodeURIComponent(uid)}`;
+      } else {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+        accountLink.href = '/login/';
+      }
+    }
+
+    function applyTheme(theme, persistToFirestore = true) {
+      const t = theme === 'light' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.body.setAttribute('data-theme', t);
+      if (footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
+      try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+      if (persistToFirestore && sessionAccountDoc && sessionAccountDoc.id) {
+        setDoc(doc(db, 'accounts', sessionAccountDoc.id), { theme: t }, { merge: true }).catch(() => {});
+      }
+      if (themeSelect) themeSelect.value = t;
+    }
+
+    const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
+const STEP = 72 * 60 * 60 * 1000; // 72h
+
+function getNextEpisodeTime() {
+  const now = Date.now();
+  const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
+  return new Date(next);
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function updateCountdown() {
+  const el = document.getElementById('countdown-value');
+  if (!el) return;
+
+  const now = new Date();
+  const target = getNextEpisodeTime();
+
+  const diff = Math.max(0, target - now);
+  const s = Math.floor(diff / 1000) % 60;
+  const m = Math.floor(diff / 60000) % 60;
+  const h = Math.floor(diff / 3600000) % 24;
+  const d = Math.floor(diff / (24 * 3600000));
+
+  const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+
+  el.style.transform = 'translateY(-6px) scale(0.99)';
+  el.style.opacity = '0.85';
+  setTimeout(() => {
+    el.textContent = out;
+    el.style.transform = 'translateY(0) scale(1)';
+    el.style.opacity = '1';
+  }, 120);
+}
+
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+    function removeGlobalDrawerListeners() {
+      document.removeEventListener('pointerdown', outsideDrawerHandler);
+      document.removeEventListener('touchstart', outsideDrawerHandler);
+      document.removeEventListener('keydown', escCloseHandler);
+    }
+
+    function closeDrawer() {
+      if (!drawerWrap) return;
+      drawerWrap.classList.remove('open');
+      const drawerEl = drawerWrap.querySelector('.drawer');
+      let cleaned = false;
+      function cleanUpAfterClose() {
+        if (cleaned) return;
+        cleaned = true;
+        drawerWrap.setAttribute('aria-hidden', 'true');
+        removeGlobalDrawerListeners();
+        if (drawerEl) drawerEl.removeEventListener('transitionend', onTransitionEnd);
+      }
+      function onTransitionEnd(e) { if (e.target === drawerEl) cleanUpAfterClose(); }
+      if (drawerEl) drawerEl.addEventListener('transitionend', onTransitionEnd);
+      setTimeout(cleanUpAfterClose, 700);
+    }
+
+    function openDrawer() {
+      if (!drawerWrap) return;
+      drawerWrap.classList.add('open');
+      drawerWrap.setAttribute('aria-hidden', 'false');
+      setTimeout(() => {
+        document.addEventListener('pointerdown', outsideDrawerHandler);
+        document.addEventListener('touchstart', outsideDrawerHandler, { passive: true });
+        document.addEventListener('keydown', escCloseHandler);
+      }, 0);
+    }
+
+    function escCloseHandler(e) {
+      if (e.key === 'Escape' || e.key === 'Esc') closeDrawer();
+    }
+
+    function outsideDrawerHandler(e) {
+      if (!drawerWrap || !drawerWrap.classList.contains('open')) return;
+      const drawerEl = drawerWrap.querySelector('.drawer');
+      const path = e.composedPath ? e.composedPath() : (e.path || []);
+      const target = path && path.length ? path[0] : e.target;
+      if (drawerEl && drawerEl.contains(target)) return;
+      if (menuOpen && menuOpen.contains(target)) return;
+      closeDrawer();
+    }
+
+    async function loadAccountById(uid) {
+      if (!uid) return null;
+      const ref = doc(db, 'accounts', uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...snap.data() };
+    }
+
+    async function bootstrapSessionFromUrl() {
+      const { sessionId } = getUrlIds();
+      if (!sessionId) return null;
+      try {
+        const data = await loadAccountById(sessionId);
+        if (data) {
+          sessionAccountDoc = data;
+          setAccountMenuLabel(sessionAccountDoc.display_name || 'Konto', sessionAccountDoc.id);
+          return sessionAccountDoc;
+        }
+      } catch (e) {
+        console.error('bootstrapSessionFromUrl failed', e);
+      }
+      return null;
+    }
+
+    async function ensureAccountDocForUser(user) {
+      const ref = doc(db, 'accounts', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+        const created = {
+          display_name: user.displayName || nickFromEmail || 'Użytkownik',
+          email: user.email || null,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(ref, created);
+        return { id: user.uid, ...created };
+      }
+      return { id: snap.id, ...snap.data() };
+    }
+
+    function buildThumb(data, id) {
+      return (
+        data.imageURL ||
+        data.imageUrl ||
+        data.image_url ||
+        data.thumb ||
+        data.thumbnail ||
+        data.downloadURL ||
+        data.download_url ||
+        `/site_files/${encodeURIComponent(id)}`
+      );
+    }
+
+    function normalizeOwner(data) {
+      return safeText(
+        data.owner_uid ||
+        data.OwnerUID ||
+        data.ownerUid ||
+        data.Owner ||
+        data.Username ||
+        data.display_name ||
+        data.owner,
+        ''
+      );
+    }
+
+    async function loadProfilePicture(uid) {
+      try {
+        const ref = doc(db, 'profile_pictures', uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return null;
+        const data = snap.data() || {};
+        return data.url || data.imageURL || data.image_url || data.downloadURL || data.src || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function resolveProfileDoc() {
+      const { profileId } = getUrlIds();
+      const targetId = profileId || sessionAccountDoc?.id || null;
+      if (!targetId) return null;
+      try {
+        const data = await loadAccountById(targetId);
+        if (data) {
+          profileAccountDoc = data;
+          return profileAccountDoc;
+        }
+      } catch (e) {
+        console.error('resolveProfileDoc failed', e);
+      }
+      return null;
+    }
+
+    function updateEditButton() {
+      const editBtn = document.getElementById('editProfileBtn');
+      const sessionId = sessionAccountDoc?.id;
+      const profileId = profileAccountDoc?.id;
+      if (!editBtn) return;
+      if (sessionId && profileId && sessionId === profileId) {
+        editBtn.style.display = 'inline-flex';
+        editBtn.onclick = () => {
+          window.location.href = `/konto/edytuj.html?account=${encodeURIComponent(sessionId)}&sessionid=${encodeURIComponent(sessionId)}`;
+        };
+      } else {
+        editBtn.style.display = 'none';
+      }
+    }
+
+    async function loadPublishedMaterials() {
+      const materialsGrid = document.getElementById('materialsGrid');
+      if (!materialsGrid) return;
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Ładowanie materiałów...</div>';
+      if (!profileAccountDoc || !profileAccountDoc.id) {
+        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak aktywnego profilu do wyświetlenia.</div>';
+        return;
+      }
+
+      try {
+        const [imageSnaps, postSnaps] = await Promise.allSettled([
+          getDocs(collection(db, 'images_metadata')),
+          getDocs(collection(db, 'user_posts'))
+        ]);
+
+        const list = [];
+        let totalViews = 0;
+
+        if (imageSnaps.status === 'fulfilled') {
+          imageSnaps.value.forEach(docSnap => {
+            const data = docSnap.data() || {};
+            const title = safeText(data.name, docSnap.id);
+            const ownerValue = normalizeOwner(data);
+            const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+            const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+            const isMine = ownerUid === profileAccountDoc.id || ownerValue === safeText(profileAccountDoc.display_name, '') || ownerValue === profileAccountDoc.id;
+            if (!isMine) return;
+            totalViews += views;
+            list.push({
+              kind: 'image',
+              id: docSnap.id,
+              title,
+              owner: ownerValue || profileAccountDoc.display_name || '—',
+              views,
+              thumb: buildThumb(data, docSnap.id)
+            });
+          });
+        }
+
+        if (postSnaps.status === 'fulfilled') {
+          postSnaps.value.forEach(docSnap => {
+            const data = docSnap.data() || {};
+            const title = safeText(data.title || data.name, docSnap.id);
+            const ownerValue = normalizeOwner(data);
+            const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+            const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+            const isMine = ownerUid === profileAccountDoc.id || ownerValue === safeText(profileAccountDoc.display_name, '') || ownerValue === profileAccountDoc.id;
+            if (!isMine) return;
+            totalViews += views;
+            list.push({
+              kind: 'post',
+              id: docSnap.id,
+              title,
+              owner: ownerValue || profileAccountDoc.display_name || '—',
+              views,
+              thumb: data.imageURL || data.imageUrl || data.coverURL || 'https://via.placeholder.com/640x360?text=Post'
+            });
+          });
+        }
+
+        document.getElementById('statMaterials').textContent = String(list.length);
+        document.getElementById('statViews').textContent = String(totalViews);
+        profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
+        profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+        profileSubtitle.textContent = `Edytujesz profil: ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+        profileBio.textContent = profileAccountDoc.bio || 'Profil nie ma jeszcze opisu.';
+
+        if (!list.length) {
+          materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak opublikowanych materiałów przypisanych do tego konta.</div>';
+          return;
+        }
+
+        materialsGrid.innerHTML = '';
+        list.slice(0, 12).forEach(item => {
+          const a = document.createElement('a');
+          a.className = 'material-card';
+          if (item.kind === 'image') {
+            a.href = `/galeria/obrazek/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&name=${encodeURIComponent(item.id)}`;
+          } else {
+            a.href = `/posty/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&postid=${encodeURIComponent(item.id)}`;
+          }
+          a.innerHTML = `
+            <img src="${item.thumb}" alt="${String(item.title).replace(/"/g, '&quot;')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/640x360?text=No+image'">
+            <div class="meta">
+              <div class="title">${item.title}</div>
+              <div class="sub">${item.owner || profileAccountDoc.display_name || '—'} · ${item.views} views</div>
+            </div>
+          `;
+          materialsGrid.appendChild(a);
+        });
+      } catch (e) {
+        console.error('loadPublishedMaterials failed', e);
+        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Nie udało się wczytać materiałów.</div>';
+      }
+    }
+
+    function fillFormFromProfile() {
+      if (!profileAccountDoc) return;
+      if (displayNameInput) displayNameInput.value = profileAccountDoc.display_name || '';
+      if (bioInput) bioInput.value = profileAccountDoc.bio || '';
+      if (avatarUrlInput) avatarUrlInput.value = profileAccountDoc.avatar || '';
+      if (themeSelect) themeSelect.value = profileAccountDoc.theme || localStorage.getItem(THEME_KEY) || 'dark';
+      if (profileAvatar) profileAvatar.src = profileAccountDoc.avatar || fallbackAvatar;
+      if (profileName) profileName.textContent = profileAccountDoc.display_name || 'Konto';
+      if (profileUid) profileUid.textContent = `UID: ${profileAccountDoc.id || '—'}`;
+      if (profileSession) profileSession.textContent = `Sesja: ${sessionAccountDoc?.id || '—'}`;
+      if (profileCreated) profileCreated.textContent = profileAccountDoc.createdAt ? new Date(profileAccountDoc.createdAt).toLocaleString() : '—';
+      if (profileTheme) profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
+    }
+
+    async function saveProfile() {
+      if (!allowedToEdit || !profileAccountDoc?.id) {
+        toastMsg('Nie masz uprawnień do edycji tego profilu.');
+        return;
+      }
+
+      const display_name = String(displayNameInput?.value || '').trim();
+      const bio = String(bioInput?.value || '').trim();
+      const avatar = String(avatarUrlInput?.value || '').trim();
+      const theme = themeSelect?.value === 'light' ? 'light' : 'dark';
+
+      const payload = {
+        display_name: display_name || profileAccountDoc.display_name || 'Użytkownik',
+        bio,
+        avatar: avatar || null,
+        theme,
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Zapisywanie...';
+
+        await setDoc(doc(db, 'accounts', profileAccountDoc.id), payload, { merge: true });
+
+        if (avatar) {
+          await setDoc(doc(db, 'profile_pictures', profileAccountDoc.id), {
+            url: avatar,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+
+        profileAccountDoc = { ...profileAccountDoc, ...payload };
+        sessionAccountDoc = { ...sessionAccountDoc, ...payload };
+        setAccountMenuLabel(profileAccountDoc.display_name, profileAccountDoc.id);
+        applyTheme(theme, true);
+        fillFormFromProfile();
+        toastMsg('Profil zapisany.');
+
+        const backUrl = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
+        setTimeout(() => {
+          window.location.href = backUrl;
+        }, 800);
+      } catch (e) {
+        console.error(e);
+        toastMsg('Nie udało się zapisać profilu.');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-symbols-rounded">save</span> Zapisz zmiany';
+      }
+    }
+
+    function showAuthLockMessage() {
+      if (statusMsg) {
+        statusMsg.textContent = 'Nie masz uprawnień do edycji tego profilu. Zaloguj się na właściciela konta.';
+      }
+      if (saveBtn) saveBtn.disabled = true;
+      [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
+        if (el) el.disabled = true;
+      });
+    }
+
+    async function initPage() {
+      if (logoImg) logoImg.src = defaultLogo;
+      if (drawerLogo) drawerLogo.src = defaultLogo;
+      if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
+
+      applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
+      if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
+      if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
+      if (themeSelect) themeSelect.onchange = () => applyTheme(themeSelect.value);
+
+     
+
+      await bootstrapSessionFromUrl();
+      await resolveProfileDoc();
+
+      if (sessionAccountDoc && profileAccountDoc && sessionAccountDoc.id === profileAccountDoc.id) {
+        allowedToEdit = true;
+        if (statusMsg) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
+      } else {
+        allowedToEdit = false;
+        if (statusMsg) statusMsg.textContent = 'To nie jest Twój profil albo nie ma aktywnej sesji.';
+      }
+
+      if (!profileAccountDoc && sessionAccountDoc) {
+        profileAccountDoc = sessionAccountDoc;
+      }
+
+      if (profileAccountDoc) {
+        profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+        profileSubtitle.textContent = `Sesja aktywna: ${safeText(sessionAccountDoc?.display_name || sessionAccountDoc?.id || 'Konto', 'Konto')}`;
+        if (profileAvatar) profileAvatar.src = (await loadProfilePicture(profileAccountDoc.id)) || profileAccountDoc.avatar || fallbackAvatar;
+        document.title = `NyanHappi12 — Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+        fillFormFromProfile();
+        await loadPublishedMaterials();
+        updateEditButton?.();
+      } else {
+        profileTitle.textContent = 'Edytuj profil';
+        profileSubtitle.textContent = 'Nie wykryto aktywnego profilu.';
+        profileName.textContent = 'Gość';
+        profileUid.textContent = 'UID: —';
+        if (profileAvatar) profileAvatar.src = fallbackAvatar;
+        if (statusMsg) statusMsg.textContent = 'Brak aktywnej sesji. Najpierw zaloguj się.';
+        showAuthLockMessage();
+      }
+    }
+
+    menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
+    drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+    drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          sessionAccountDoc = await ensureAccountDocForUser(user);
+          setAccountMenuLabel(sessionAccountDoc.display_name || 'Konto', sessionAccountDoc.id);
+          const { profileId } = getUrlIds();
+          const finalProfileId = profileId || sessionAccountDoc.id;
+          setUrlIds(sessionAccountDoc.id, finalProfileId);
+          if (sessionAccountDoc && sessionAccountDoc.theme) applyTheme(sessionAccountDoc.theme, false);
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        const session = await bootstrapSessionFromUrl();
+        if (session) {
+          setAccountMenuLabel(session.display_name || 'Konto', session.id);
+          if (session.theme) applyTheme(session.theme, false);
+          const { profileId } = getUrlIds();
+          if (!profileId) setUrlIds(session.id, session.id);
+        } else {
+          sessionAccountDoc = null;
+          setAccountMenuLabel(null, null);
+        }
+      }
+
+      await resolveProfileDoc();
+      allowedToEdit = !!(sessionAccountDoc && profileAccountDoc && sessionAccountDoc.id === profileAccountDoc.id);
+      if (allowedToEdit) {
+        if (statusMsg) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
+        if (saveBtn) saveBtn.disabled = false;
+        [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
+          if (el) el.disabled = false;
+        });
+      } else {
+        showAuthLockMessage();
+      }
+      fillFormFromProfile();
+      updateEditButton?.();
+    });
+
+    accountLink?.addEventListener('click', async (e) => {
+      if (sessionAccountDoc && sessionAccountDoc.id) {
+        const { profileId } = getUrlIds();
+        const finalProfileId = profileId || profileAccountDoc?.id || sessionAccountDoc.id;
+        window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(finalProfileId)}`;
+        return;
+      }
+      e.preventDefault();
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        alert('Błąd logowania: ' + (err && err.message || err));
+      }
+    });
+
+    accountLink?.addEventListener('contextmenu', async (ev) => {
+      ev.preventDefault();
+      if (confirm('Wylogować?')) {
+        await signOut(auth);
+        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+        toastMsg('Wylogowano');
+      }
+    });
+
+    saveBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveProfile();
+    });
+
+    backBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!profileAccountDoc?.id) {
+        window.location.href = '/konto/';
+        return;
+      }
+      window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
+    });
+
+    document.getElementById('home-link')?.addEventListener('dblclick', () => {
+      const l = prompt('Podaj URL logo (pusty = placeholder):', logoImg?.src || defaultLogo);
+      if (l !== null) {
+        if (logoImg) logoImg.src = l || defaultLogo;
+        if (drawerLogo) drawerLogo.src = l || defaultLogo;
+      }
+
+      const currentHero = (hero?.style.backgroundImage || '').replace(/^url['"]?/, '').replace(/['"]?$/, '');
+      const h = prompt('Podaj URL tła hero (pusty = placeholder):', currentHero);
+      if (h !== null && hero) {
+        hero.style.backgroundImage = `url('${h || defaultHero}')`;
+      }
+    });
+
+    initPage();
+  </script></body>
+</html>
