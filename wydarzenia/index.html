@@ -159,7 +159,7 @@
 
   <!-- TOPBAR -->
   <header class="topbar">
-    <a id="home-link" class="brand" href="/-/index.html" title="NyanHappi12 — Strona główna">
+    <a id="home-link" class="brand" href="/" title="NyanHappi12 — Strona główna">
       <img id="logo-img" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" alt="logo">
       <div>
         <div class="title">NyanHappi12 <span class="logo-small">☆</span></div>
@@ -181,7 +181,7 @@
       <button id="drawerClose" class="close" aria-label="Zamknij"><strong>✕</strong></button>
 
       <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px">
-        <img id="drawer-logo" src="https://nyanhappi12.neocities.org/site_files/Copilot_20251213_004258.png" style="width:56px;height:56px;border-radius:999px;object-fit:cover">
+        <img id="drawer-logo" src="https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png" style="width:56px;height:56px;border-radius:999px;object-fit:cover">
         <div>
           <div style="font-weight:700">NyanHappi12</div>
           <div style="font-size:12px;color:var(--muted)">Witaj! wybierz stronę</div>
@@ -224,7 +224,7 @@
         <!-- New Year -->
         <div class="counter-card counter-newyear">
           <h3>Nowy Rok 2027</h3>
-          <div class="counter-desc">Liczymy do 1 stycznia 2027, 00:00:00 (czas lokalny — Polska)</div>
+          <div class="counter-desc">Liczymy do 1 stycznia 2027, 00:00:00</div>
           <div class="digits" aria-hidden="false" data-target="newyear">
             <div class="digit"><span class="num" id="ny-days">--</span><span class="lbl">dni</span></div>
             <div class="digit"><span class="num" id="ny-hours">--</span><span class="lbl">godz</span></div>
@@ -237,7 +237,7 @@
         <!-- Vac start -->
         <div class="counter-card counter-vac">
           <h3>Start wakacji (przykładowo)</h3>
-          <div class="counter-desc">Liczymy do 26 czerwca 2026, 09:00:00 (czas lokalny — Polska)</div>
+          <div class="counter-desc">Liczymy do 26 czerwca 2026, 09:00:00</div>
           <div class="digits" data-target="vacstart">
             <div class="digit"><span class="num" id="v-days">--</span><span class="lbl">dni</span></div>
             <div class="digit"><span class="num" id="v-hours">--</span><span class="lbl">godz</span></div>
@@ -250,7 +250,7 @@
         <!-- Vac end -->
         <div class="counter-card counter-vacend">
           <h3>Koniec wakacji</h3>
-          <div class="counter-desc">Liczymy do 1 września 2026, 09:00:00 (czas lokalny — Polska)</div>
+          <div class="counter-desc">Liczymy do 1 września 2026, 09:00:00</div>
           <div class="digits" data-target="vacend">
             <div class="digit"><span class="num" id="ve-days">--</span><span class="lbl">dni</span></div>
             <div class="digit"><span class="num" id="ve-hours">--</span><span class="lbl">godz</span></div>
@@ -263,7 +263,7 @@
         <!-- Birthday -->
         <div class="counter-card counter-birthday">
           <h3>Urodziny</h3>
-          <div class="counter-desc">Liczymy do 15 stycznia 2027, 16:10:00 (czas lokalny — Polska)</div>
+          <div class="counter-desc">Liczymy do 15 stycznia 2027, 16:10:00</div>
           <div class="digits" data-target="bday">
             <div class="digit"><span class="num" id="b-days">--</span><span class="lbl">dni</span></div>
             <div class="digit"><span class="num" id="b-hours">--</span><span class="lbl">godz</span></div>
@@ -275,7 +275,7 @@
       </div>
 
       <div style="margin-top:18px">
-        <a href="/index.html" class="cta">Wróć do strony głównej</a>
+        <a href="/" class="cta">Wróć do strony głównej</a>
         <a href="/filmy/" class="cta gradient" style="margin-left:10px">Zobacz filmy</a>
       </div>
     </section>
@@ -289,7 +289,7 @@
   <!-- STICKY COUNTDOWN bottom-right (daily 21:00) -->
   <div id="sticky-countdown" class="countdown" role="status" aria-live="polite">
     <div style="font-size:12px;font-weight:600">Do następnego odcinka zostało:</div>
-    <div id="sticky-value" class="time">--:--:--</div>
+    <div id="sticky-value" class="time">Wczytywanie...</div>
   </div>
 
   <!-- SCRIPTS -->
@@ -445,10 +445,10 @@
 
     // targets:
     const targets = {
-      newyear: makeLocalDate(2027, 0, 1, 0, 0, 0),       // 2027-01-01 00:00 local
-      vacstart: makeLocalDate(2026, 5, 26, 9, 0, 0),     // 2026-06-26 09:00 local
-      vacend: makeLocalDate(2026, 8, 1, 9, 0, 0),        // 2026-09-01 09:00 local
-      bday: makeLocalDate(2027, 0, 15, 16, 10, 0)        // 2027-01-15 16:10 local
+      newyear: makeLocalDate(2027, 0, 1, 0, 0, 0),       // 2027-01-01 00:00:00 CET
+      vacstart: makeLocalDate(2026, 5, 26, 9, 0, 0),     // 2026-06-26 09:00:00 CEST
+      vacend: makeLocalDate(2026, 8, 1, 9, 0, 0),        // 2026-09-01 09:00:00 CEST
+      bday: makeLocalDate(2027, 0, 15, 16, 10, 0)        // 2027-01-15 16:10:00 CET
     };
 
     function updateCounter(prefix, targetDate){
@@ -560,24 +560,43 @@
     startAllCounters();
 
     /* ---------- sticky next-episode countdown daily 21:00 local ---------- */
-    (function stickyCountdown(){
-      function next21(){
-        const now = new Date();
-        const nxt = new Date(now);
-        nxt.setHours(21,0,0,0);
-        if(nxt <= now) nxt.setDate(nxt.getDate()+1);
-        return nxt;
-      }
-      function upd(){
-        const t = next21() - Date.now();
-        if(t<=0){ stickyValue.textContent='00:00:00'; return; }
-        const h = Math.floor(t/3600000);
-        const m = Math.floor((t%3600000)/60000);
-        const s = Math.floor((t%60000)/1000);
-        stickyValue.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-      }
-      upd(); setInterval(upd,1000);
-    })();
+    const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
+const STEP = 72 * 60 * 60 * 1000; // 72h
+
+function getNextEpisodeTime() {
+  const now = Date.now();
+  const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
+  return new Date(next);
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function updateCountdown() {
+  const el = document.getElementById('countdown-value');
+  if (!el) return;
+
+  const now = new Date();
+  const target = getNextEpisodeTime();
+
+  const diff = Math.max(0, target - now);
+  const s = Math.floor(diff / 1000) % 60;
+  const m = Math.floor(diff / 60000) % 60;
+  const h = Math.floor(diff / 3600000) % 24;
+  const d = Math.floor(diff / (24 * 3600000));
+
+  const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+
+  el.style.transform = 'translateY(-6px) scale(0.99)';
+  el.style.opacity = '0.85';
+  setTimeout(() => {
+    el.textContent = out;
+    el.style.transform = 'translateY(0) scale(1)';
+    el.style.opacity = '1';
+  }, 120);
+}
+
+updateCountdown();
+setInterval(updateCountdown, 1000);
 
     /* ---------- Accessibility note: prevent accidental text-selection on counters ---------- */
     document.querySelectorAll('.digits, .digit, .num').forEach(el=>{
