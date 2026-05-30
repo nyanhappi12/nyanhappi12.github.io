@@ -372,7 +372,14 @@
   const logoImg = document.getElementById('logo-img');
   const drawerLogo = document.getElementById('drawer-logo');
   const hero = document.getElementById('hero');
-  const editProfileBtn = document.getElementById('editProfileBtn');
+
+  const displayNameInput = document.getElementById('displayName');
+  const bioInput = document.getElementById('bio');
+  const avatarUrlInput = document.getElementById('avatarUrl');
+  const themeSelect = document.getElementById('themeSelect');
+  const saveBtn = document.getElementById('saveBtn');
+  const backBtn = document.getElementById('backBtn');
+  const statusMsg = document.getElementById('statusMsg');
 
   const THEME_KEY = 'nh_theme';
   const SESSION_KEY = 'nh_session_id';
@@ -409,6 +416,7 @@
     const profileId =
       params.get('profileid') ||
       params.get('profile_id') ||
+      params.get('account') ||
       sessionId;
 
     return { sessionId, profileId };
@@ -416,11 +424,14 @@
 
   function setUrlIds(sessionId, profileId) {
     const u = new URL(window.location.href);
+
     if (sessionId) u.searchParams.set('sessionid', sessionId);
     else u.searchParams.delete('sessionid');
 
     if (profileId) u.searchParams.set('profileid', profileId);
     else u.searchParams.delete('profileid');
+
+    u.searchParams.delete('account');
 
     window.history.replaceState({}, '', u.toString());
 
@@ -438,7 +449,7 @@
 
     try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
 
-    if (persistToFirestore && accountDoc && accountDoc.id) {
+    if (persistToFirestore && accountDoc?.id) {
       setDoc(doc(db, 'accounts', accountDoc.id), { theme: t }, { merge: true }).catch(() => {});
     }
   }
@@ -591,19 +602,6 @@
     }
   }
 
-  function buildThumb(data, id) {
-    return (
-      data.imageURL ||
-      data.imageUrl ||
-      data.image_url ||
-      data.thumb ||
-      data.thumbnail ||
-      data.downloadURL ||
-      data.download_url ||
-      `https://via.placeholder.com/640x360?text=${encodeURIComponent(id)}`
-    );
-  }
-
   function normalizeOwner(data) {
     return safeText(
       data.owner_uid ||
@@ -614,6 +612,19 @@
       data.display_name ||
       data.owner,
       ''
+    );
+  }
+
+  function buildThumb(data, id) {
+    return (
+      data.imageURL ||
+      data.imageUrl ||
+      data.image_url ||
+      data.thumb ||
+      data.thumbnail ||
+      data.downloadURL ||
+      data.download_url ||
+      `https://via.placeholder.com/640x360?text=${encodeURIComponent(id)}`
     );
   }
 
@@ -647,29 +658,8 @@
     return null;
   }
 
-  function updateEditButton() {
-    if (!editProfileBtn) return;
-
-    const sessionId = accountDoc?.id;
-    const profileId = profileAccountDoc?.id;
-
-    if (sessionId && profileId && sessionId === profileId) {
-      editProfileBtn.style.display = 'inline-flex';
-      editProfileBtn.onclick = () => {
-        window.location.href = `/konto/edytuj.html?account=${encodeURIComponent(sessionId)}&sessionid=${encodeURIComponent(sessionId)}`;
-      };
-    } else {
-      editProfileBtn.style.display = 'none';
-    }
-  }
-
   function fillFormFromProfile() {
     if (!profileAccountDoc) return;
-
-    const displayNameInput = document.getElementById('displayName');
-    const bioInput = document.getElementById('bio');
-    const avatarUrlInput = document.getElementById('avatarUrl');
-    const themeSelect = document.getElementById('themeSelect');
 
     if (displayNameInput) displayNameInput.value = profileAccountDoc.display_name || '';
     if (bioInput) bioInput.value = profileAccountDoc.bio || '';
@@ -796,12 +786,6 @@
   }
 
   async function saveProfile() {
-    const displayNameInput = document.getElementById('displayName');
-    const bioInput = document.getElementById('bio');
-    const avatarUrlInput = document.getElementById('avatarUrl');
-    const themeSelect = document.getElementById('themeSelect');
-    const saveBtn = document.getElementById('saveBtn');
-
     if (!allowedToEdit || !profileAccountDoc?.id) {
       toastMsg('Nie masz uprawnień do edycji tego profilu.');
       return;
@@ -859,13 +843,6 @@
   }
 
   function showAuthLockMessage() {
-    const statusMsg = document.getElementById('statusMsg');
-    const saveBtn = document.getElementById('saveBtn');
-    const displayNameInput = document.getElementById('displayName');
-    const bioInput = document.getElementById('bio');
-    const avatarUrlInput = document.getElementById('avatarUrl');
-    const themeSelect = document.getElementById('themeSelect');
-
     if (statusMsg) statusMsg.textContent = 'Nie masz uprawnień do edycji tego profilu. Zaloguj się na właściciela konta.';
     if (saveBtn) saveBtn.disabled = true;
     [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
@@ -874,14 +851,6 @@
   }
 
   async function initPage() {
-    const saveBtn = document.getElementById('saveBtn');
-    const backBtn = document.getElementById('backBtn');
-    const displayNameInput = document.getElementById('displayName');
-    const bioInput = document.getElementById('bio');
-    const avatarUrlInput = document.getElementById('avatarUrl');
-    const themeSelect = document.getElementById('themeSelect');
-    const statusMsg = document.getElementById('statusMsg');
-
     if (logoImg) logoImg.src = defaultLogo;
     if (drawerLogo) drawerLogo.src = defaultLogo;
     if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
@@ -905,7 +874,6 @@
       document.title = `NyanHappi12 — Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
       fillFormFromProfile();
       await loadPublishedMaterials();
-      updateEditButton();
     } else {
       if (profileTitle) profileTitle.textContent = 'Edytuj profil';
       if (profileSubtitle) profileSubtitle.textContent = 'Nie wykryto aktywnego profilu.';
@@ -975,13 +943,6 @@
       allowedToEdit = !!(accountDoc && profileAccountDoc && accountDoc.id === profileAccountDoc.id);
 
       if (allowedToEdit) {
-        const statusMsg = document.getElementById('statusMsg');
-        const saveBtn = document.getElementById('saveBtn');
-        const displayNameInput = document.getElementById('displayName');
-        const bioInput = document.getElementById('bio');
-        const avatarUrlInput = document.getElementById('avatarUrl');
-        const themeSelect = document.getElementById('themeSelect');
-
         if (statusMsg) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
         if (saveBtn) saveBtn.disabled = false;
         [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
@@ -992,7 +953,6 @@
       }
 
       fillFormFromProfile();
-      updateEditButton();
     } catch (e) {
       console.error(e);
     }
