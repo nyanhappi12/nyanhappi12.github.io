@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NyanHappi12 — Filmy (Wszystkie odcinki) — 2026</title>
+  <title>NyanHappi12 - Filmy (Wszystkie odcinki) - 2026</title>
 
   <!-- Google Fonts -->
 <link rel="icon" type="image/png" href="https://nyanhappi12.github.io/site_files/NyanHappi12_icon.png">
@@ -264,8 +264,8 @@ body[data-theme="dark"] .content,
   <main>
     <section id="hero" class="hero" style="background-image:url('https://via.placeholder.com/1600x600?text=Świąteczny+baner')">
       <div class="card">
-        <h1>Wszystkie odcinki — kanał Happi12</h1>
-        <p>Świąteczne wydanie listy — pełna lista odcinków z kanału. Przeglądaj, klikaj i oglądaj!</p>
+        <h1>Wszystkie odcinki - kanał Happi12</h1>
+        <p>Świąteczne wydanie listy - pełna lista odcinków z kanału. Przeglądaj, klikaj i oglądaj!</p>
       </div>
     </section>
 
@@ -287,7 +287,7 @@ body[data-theme="dark"] .content,
     </section>
 
     <footer>
-      <div>© 2026 NyanHappi12 — wszelkie prawa zastrzeżone. Prosimy nie kopiować i nie próbować wyciągać kodu z źródła strony. Dziękuję — NyanHappi12</div>
+      <div>© 2026 NyanHappi12 - wszelkie prawa zastrzeżone. Prosimy nie kopiować i nie próbować wyciągać kodu z źródła strony. Dziękuję - NyanHappi12</div>
       <div style="margin-top:6px; font-size:12px">Motyw: <span id="footer-theme">ciemny</span></div>
     </footer>
   </main>
@@ -393,42 +393,64 @@ drawerBackdrop?.addEventListener('click', closeDrawer);
 
 /* ---------- AUTH handlers (accountLink) ---------- */
 let accountDoc = null;
-onAuthStateChanged(auth, async (user) => {
-  if(user){
-    const docRef = doc(db, 'accounts', user.uid);
-    try{
-      const snap = await getDoc(docRef);
-      if(!snap.exists()){
-        await setDoc(docRef, { display_name: user.displayName || user.email || 'Użytkownik', createdAt: new Date().toISOString() });
-        accountDoc = { display_name: user.displayName || user.email || 'Użytkownik', id: user.uid };
-      } else {
-        accountDoc = { id: snap.id, ...snap.data() };
+async function ensureAccountDocForUser(user) {
+      const ref = doc(db, 'accounts', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+        const created = {
+          display_name: user.displayName || nickFromEmail || 'Użytkownik',
+          email: user.email || null,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(ref, created);
+        return { id: user.uid, ...created };
       }
-      if(accountLink){
+      return { id: snap.id, ...snap.data() };
+    }
+
+    function updateAccountLink() {
+      if (!accountLink) return;
+      if (accountDoc?.id) {
         accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`;
-        accountLink.href = `/konto/${accountDoc.id}`;
+        accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+      } else {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+        accountLink.href = '/login/';
       }
-      // persist theme from Firestore if available
-      try{
-        if(accountDoc && accountDoc.theme){
-          applyTheme(accountDoc.theme, false);
-        }
-      }catch(e){}
-      // add session id to URL
-      try{
-        const u = new URL(window.location.href);
-        u.searchParams.set('session_id', accountDoc.id);
-        window.history.replaceState({}, '', u.toString());
-      }catch(e){}
-    }catch(e){ console.error(e) }
-  } else {
-    accountDoc = null;
-    if(accountLink){ accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`; accountLink.href = '/login/'; }
-    try{
-      const u = new URL(window.location.href);
-      u.searchParams.delete('session_id');
-      window.history.replaceState({}, '', u.toString());
-    }catch(e){}
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        accountDoc = await ensureAccountDocForUser(user);
+        updateAccountLink();
+        try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
+        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
+      } else {
+        accountDoc = null;
+        updateAccountLink();
+        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
+      }
+    });
+
+    accountLink?.addEventListener('click', async (e) => {
+  if(accountDoc?.id){
+    e.preventDefault();
+
+    window.location.href =
+      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+
+    return;
+  }
+
+  try{
+    e.preventDefault();
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    console.error(err);
+
+    // fallback
+    window.location.href = '/login/';
   }
 });
 
