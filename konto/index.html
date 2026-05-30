@@ -300,8 +300,8 @@
     doc,
     getDoc,
     setDoc,
-    updateDoc,
-    increment
+    collection,
+    getDocs
   } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
   const app = initializeApp(CONFIG.FIREBASE);
@@ -319,90 +319,70 @@
   const footerTheme = document.getElementById('footer-theme');
   const themeLightBtn = document.getElementById('theme-light');
   const themeDarkBtn = document.getElementById('theme-dark');
-  const countdownValue = document.getElementById('countdown-value');
-  const toast = document.getElementById('toast');
 
-  const postTitleView = document.getElementById('postTitleView');
-  const postSubtitle = document.getElementById('postSubtitle');
-  const postImage = document.getElementById('postImage');
-  const postBody = document.getElementById('postBody');
-  const postBadges = document.getElementById('postBadges');
-
-  const statOwner = document.getElementById('statOwner');
+  const profileTitle = document.getElementById('profileTitle');
+  const profileSubtitle = document.getElementById('profileSubtitle');
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileName = document.getElementById('profileName');
+  const profileUid = document.getElementById('profileUid');
+  const profileNick = document.getElementById('profileNick');
+  const profileBio = document.getElementById('profileBio');
+  const profileTheme = document.getElementById('statTheme');
+  const profileCreated = document.getElementById('statCreated');
+  const statMaterials = document.getElementById('statMaterials');
   const statViews = document.getElementById('statViews');
-  const statLikes = document.getElementById('statLikes');
-  const statComments = document.getElementById('statComments');
-  const statCreated = document.getElementById('statCreated');
-  const statUpdated = document.getElementById('statUpdated');
-  const statStatus = document.getElementById('statStatus');
-
-  const likeBtn = document.getElementById('likeBtn');
-  const commentToggleBtn = document.getElementById('commentToggleBtn');
-  const editBtn = document.getElementById('editBtn');
-  const commentsWrap = document.getElementById('commentsWrap');
-  const commentFormWrap = document.getElementById('commentFormWrap');
-  const newCommentText = document.getElementById('newCommentText');
-  const sendCommentBtn = document.getElementById('sendCommentBtn');
-
+  const materialsGrid = document.getElementById('materialsGrid');
+  const countdownValue = document.getElementById('countdown-value');
   const homeLink = document.getElementById('home-link');
   const logoImg = document.getElementById('logo-img');
   const drawerLogo = document.getElementById('drawer-logo');
   const hero = document.getElementById('hero');
+  const editProfileBtn = document.getElementById('editProfileBtn');
 
   const THEME_KEY = 'nh_theme';
   const SESSION_KEY = 'nh_session_id';
+
   const defaultLogo = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png';
-  const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Post';
-  const VIEW_COOLDOWN_MS = 5000;
+  const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Profil';
 
   let accountDoc = null;
-  let currentPost = null;
-  let commentsVisible = false;
-
-  function toastMsg(msg) {
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2200);
-  }
+  let profileAccountDoc = null;
 
   function safeText(v, fallback = '—') {
     const s = String(v ?? '').trim();
     return s ? s : fallback;
   }
 
-  function getUrlSessionId() {
+  function getUrlIds() {
     const params = new URLSearchParams(window.location.search);
-    return params.get('sessionid') || params.get('session_id') || (() => {
-      try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; }
-    })();
+
+    const sessionId =
+      params.get('sessionid') ||
+      params.get('session_id') ||
+      (() => {
+        try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; }
+      })();
+
+    const profileId = params.get('profileid') || params.get('profile_id') || sessionId;
+
+    return { sessionId, profileId };
   }
 
-  function getPostIdFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('id') || params.get('postid');
-  }
-
-  function getPostCollectionId() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('collection') || params.get('source') || 'user_posts';
-  }
-
-  function setSessionId(id) {
-    if (!id) return;
+  function setUrlIds(sessionId, profileId) {
     const u = new URL(window.location.href);
-    u.searchParams.set('sessionid', id);
-    u.searchParams.set('session_id', id);
-    window.history.replaceState({}, '', u.toString());
-    try { localStorage.setItem(SESSION_KEY, id); } catch (e) {}
-  }
 
-  function clearSessionId() {
-    const u = new URL(window.location.href);
-    u.searchParams.delete('sessionid');
-    u.searchParams.delete('session_id');
+    if (sessionId) u.searchParams.set('sessionid', sessionId);
+    else u.searchParams.delete('sessionid');
+
+    if (profileId) u.searchParams.set('profileid', profileId);
+    else u.searchParams.delete('profileid');
+
     window.history.replaceState({}, '', u.toString());
-    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+
+    try {
+      if (sessionId) localStorage.setItem(SESSION_KEY, sessionId);
+      else localStorage.removeItem(SESSION_KEY);
+    } catch (e) {}
   }
 
   function applyTheme(theme, persistToFirestore = true) {
@@ -410,7 +390,9 @@
     document.documentElement.setAttribute('data-theme', t);
     document.body.setAttribute('data-theme', t);
     if (footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
+
     try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+
     if (persistToFirestore && accountDoc && accountDoc.id) {
       setDoc(doc(db, 'accounts', accountDoc.id), { theme: t }, { merge: true }).catch(() => {});
     }
@@ -480,6 +462,7 @@
   async function ensureAccountDocForUser(user) {
     const ref = doc(db, 'accounts', user.uid);
     const snap = await getDoc(ref);
+
     if (!snap.exists()) {
       const nickFromEmail = user.email ? user.email.split('@')[0] : null;
       const created = {
@@ -490,328 +473,228 @@
       await setDoc(ref, created);
       return { id: user.uid, ...created };
     }
+
     return { id: snap.id, ...snap.data() };
   }
 
-  function accountLabel() {
-    return accountDoc?.display_name || accountDoc?.email?.split('@')[0] || 'Konto';
-  }
-
-  function updateAccountLink() {
+  function setAccountMenuLabel(name, uid) {
     if (!accountLink) return;
-    if (accountDoc?.id) {
-      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${safeText(accountLabel(), 'Konto')}`;
-      accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+
+    if (name && uid) {
+      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${safeText(name, 'Konto')}`;
+      accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc?.id || uid)}&profileid=${encodeURIComponent(uid)}`;
     } else {
       accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
       accountLink.href = '/login/';
     }
   }
 
-  async function loadAccount() {
-    const sid = getUrlSessionId();
-    if (sid) {
-      accountDoc = await loadAccountById(sid);
-    }
-    if (!accountDoc) {
-      try {
-        const saved = localStorage.getItem(SESSION_KEY);
-        if (saved) accountDoc = await loadAccountById(saved);
-      } catch (e) {}
-    }
-    updateAccountLink();
+  function normalizeOwner(data) {
+    return safeText(
+      data.owner_uid ||
+      data.OwnerUID ||
+      data.ownerUid ||
+      data.Owner ||
+      data.Username ||
+      data.display_name ||
+      data.owner,
+      ''
+    );
   }
 
-  onAuthStateChanged(auth, async (user) => {
-    try {
-      if (user) {
-        accountDoc = await ensureAccountDocForUser(user);
-        updateAccountLink();
+  function buildThumb(data, id) {
+    return (
+      data.imageURL ||
+      data.imageUrl ||
+      data.image_url ||
+      data.thumb ||
+      data.thumbnail ||
+      data.downloadURL ||
+      data.download_url ||
+      `https://via.placeholder.com/640x360?text=${encodeURIComponent(id)}`
+    );
+  }
 
-        if (accountDoc.theme) {
-          applyTheme(accountDoc.theme, false);
+  async function loadProfilePicture(uid) {
+    try {
+      const ref = doc(db, 'profile_pictures', uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      const data = snap.data() || {};
+      return data.url || data.imageURL || data.image_url || data.downloadURL || data.src || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function bootstrapSessionFromUrl() {
+    const { sessionId } = getUrlIds();
+    if (!sessionId) return null;
+
+    try {
+      const data = await loadAccountById(sessionId);
+      if (data) {
+        accountDoc = data;
+        setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
+        return accountDoc;
+      }
+    } catch (e) {
+      console.error('bootstrapSessionFromUrl failed', e);
+    }
+
+    return null;
+  }
+
+  async function resolveProfileDoc() {
+    const { profileId } = getUrlIds();
+    const targetId = profileId || accountDoc?.id || null;
+    if (!targetId) return null;
+
+    try {
+      const data = await loadAccountById(targetId);
+      if (data) {
+        profileAccountDoc = data;
+        return profileAccountDoc;
+      }
+    } catch (e) {
+      console.error('resolveProfileDoc failed', e);
+    }
+
+    return null;
+  }
+
+  function updateEditButton() {
+    if (!editProfileBtn) return;
+
+    const sessionId = accountDoc?.id;
+    const profileId = profileAccountDoc?.id;
+
+    if (sessionId && profileId && sessionId === profileId) {
+      editProfileBtn.style.display = 'inline-flex';
+      editProfileBtn.onclick = () => {
+        window.location.href =
+          `/konto/edytuj.html?account=${encodeURIComponent(sessionId)}&sessionid=${encodeURIComponent(sessionId)}`;
+      };
+    } else {
+      editProfileBtn.style.display = 'none';
+    }
+  }
+
+  async function loadPublishedMaterials() {
+    if (!materialsGrid) return;
+
+    materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Ładowanie materiałów...</div>';
+
+    if (!profileAccountDoc || !profileAccountDoc.id) {
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak aktywnego profilu do wyświetlenia.</div>';
+      return;
+    }
+
+    try {
+      const [imageSnaps, postSnaps] = await Promise.allSettled([
+        getDocs(collection(db, 'images_metadata')),
+        getDocs(collection(db, 'user_posts'))
+      ]);
+
+      const list = [];
+      let totalViews = 0;
+
+      if (imageSnaps.status === 'fulfilled') {
+        imageSnaps.value.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const title = safeText(data.name, docSnap.id);
+          const ownerValue = normalizeOwner(data);
+          const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+          const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+
+          const isMine =
+            ownerUid === profileAccountDoc.id ||
+            ownerValue === safeText(profileAccountDoc.display_name, '') ||
+            ownerValue === profileAccountDoc.id;
+
+          if (!isMine) return;
+
+          totalViews += views;
+          list.push({
+            kind: 'image',
+            id: docSnap.id,
+            title,
+            owner: ownerValue || profileAccountDoc.display_name || '—',
+            views,
+            thumb: buildThumb(data, docSnap.id)
+          });
+        });
+      }
+
+      if (postSnaps.status === 'fulfilled') {
+        postSnaps.value.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const title = safeText(data.title || data.name, docSnap.id);
+          const ownerValue = normalizeOwner(data);
+          const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+          const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+
+          const isMine =
+            ownerUid === profileAccountDoc.id ||
+            ownerValue === safeText(profileAccountDoc.display_name, '') ||
+            ownerValue === profileAccountDoc.id;
+
+          if (!isMine) return;
+
+          totalViews += views;
+          list.push({
+            kind: 'post',
+            id: docSnap.id,
+            title,
+            owner: ownerValue || profileAccountDoc.display_name || '—',
+            views,
+            thumb: data.imageURL || data.imageUrl || data.coverURL || 'https://via.placeholder.com/640x360?text=Post'
+          });
+        });
+      }
+
+      statMaterials.textContent = String(list.length);
+      statViews.textContent = String(totalViews);
+      profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
+      profileCreated.textContent = profileAccountDoc.createdAt ? new Date(profileAccountDoc.createdAt).toLocaleString() : '—';
+      profileBio.textContent = profileAccountDoc.bio || 'Profil nie ma jeszcze opisu.';
+
+      if (!list.length) {
+        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak opublikowanych materiałów przypisanych do tego konta.</div>';
+        return;
+      }
+
+      materialsGrid.innerHTML = '';
+      list.slice(0, 12).forEach(item => {
+        const a = document.createElement('a');
+        a.className = 'material-card';
+
+        if (item.kind === 'image') {
+          a.href = `/galeria/obrazek/?sessionid=${encodeURIComponent(accountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&name=${encodeURIComponent(item.id)}`;
+        } else {
+          a.href = `/posty/?sessionid=${encodeURIComponent(accountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&postid=${encodeURIComponent(item.id)}`;
         }
 
-        try {
-          const u = new URL(window.location.href);
-          u.searchParams.set('sessionid', accountDoc.id);
-          u.searchParams.set('session_id', accountDoc.id);
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {}
-      } else {
-        accountDoc = null;
-        updateAccountLink();
-
-        try {
-          const u = new URL(window.location.href);
-          u.searchParams.delete('sessionid');
-          u.searchParams.delete('session_id');
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {}
-      }
+        a.innerHTML = `
+          <img src="${item.thumb}" alt="${String(item.title).replace(/"/g, '&quot;')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/640x360?text=No+image'">
+          <div class="meta">
+            <div class="title">${item.title}</div>
+            <div class="sub">${item.owner || profileAccountDoc.display_name || '—'} · ${item.views} views</div>
+          </div>
+        `;
+        materialsGrid.appendChild(a);
+      });
     } catch (e) {
-      console.error(e);
-      toastMsg('Błąd inicjalizacji konta.');
-    }
-  });
-
-  accountLink?.addEventListener('click', async (e) => {
-    if (accountDoc?.id) {
-      e.preventDefault();
-      window.location.href =
-        `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-      return;
-    }
-
-    e.preventDefault();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error(err);
-      window.location.href = '/login/';
-    }
-  });
-
-  accountLink?.addEventListener('contextmenu', async (ev) => {
-    ev.preventDefault();
-    if (confirm('Wylogować?')) {
-      await signOut(auth);
-      try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-      accountDoc = null;
-      updateAccountLink();
-      toastMsg('Wylogowano');
-    }
-  });
-
-  function fmtDate(value) {
-    try {
-      if (!value) return '—';
-      if (typeof value?.toDate === 'function') return value.toDate().toLocaleString();
-      if (typeof value === 'string' || typeof value === 'number') return new Date(value).toLocaleString();
-      return new Date(value).toLocaleString();
-    } catch (e) {
-      return '—';
+      console.error('loadPublishedMaterials failed', e);
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Nie udało się wczytać materiałów.</div>';
     }
   }
-
-  function normalizePostData(docSnap) {
-    const data = docSnap.data() || {};
-    const title = safeText(data.title || data.name || 'Bez tytułu', docSnap.id);
-    const body = safeText(data.content || data.body || data.text || '', '');
-    const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.author_uid || data.user_uid || data.uid, '');
-    const ownerName = safeText(
-      data.display_name || data.owner_name || data.Owner || data.Username || data.owner || data.author_name || '—',
-      '—'
-    );
-    const image = data.imageURL || data.imageUrl || data.image_url || data.coverURL || data.cover_url || data.thumb || 'https://via.placeholder.com/1200x675?text=Post';
-    const likes = Number.parseInt(String(data.likes ?? 0).replace(/\D/g, ''), 10) || 0;
-    const commentsCount = Number.parseInt(String(data.comments_count ?? data.commentsCount ?? 0).replace(/\D/g, ''), 10) || 0;
-    const views = Number.parseInt(String(data.views ?? 0).replace(/\D/g, ''), 10) || 0;
-    const createdAt = data.createdAt || data.CreatedAt || data.uploadedAt || data.Uploaded || null;
-    const updatedAt = data.updatedAt || data.UpdatedAt || data.modifiedAt || null;
-    const commentsEnabled = data.comments_enabled !== false;
-    const isDraft = !!data.draft;
-    const likedBy = Array.isArray(data.liked_by) ? data.liked_by : [];
-    const comments = Array.isArray(data.comments) ? data.comments : [];
-
-    return {
-      id: docSnap.id,
-      title,
-      body,
-      ownerUid,
-      ownerName,
-      image,
-      likes,
-      commentsCount,
-      views,
-      createdAt,
-      updatedAt,
-      commentsEnabled,
-      isDraft,
-      likedBy,
-      comments,
-      raw: data
-    };
-  }
-
-  function viewCooldownKey(postId) {
-    return `nh_post_view_${postId}`;
-  }
-
-  async function maybeIncrementViews(postId) {
-    if (!postId) return;
-
-    const key = viewCooldownKey(postId);
-    const now = Date.now();
-    let last = 0;
-
-    try {
-      last = Number(localStorage.getItem(key) || '0');
-    } catch (e) {}
-
-    if (now - last < VIEW_COOLDOWN_MS) return;
-
-    try {
-      localStorage.setItem(key, String(now));
-    } catch (e) {}
-
-    try {
-      await updateDoc(doc(db, getPostCollectionId(), postId), { views: increment(1) });
-    } catch (e) {
-      try {
-        const snap = await getDoc(doc(db, getPostCollectionId(), postId));
-        const current = Number.parseInt(String(snap.exists() ? (snap.data().views ?? 0) : 0).replace(/\D/g, ''), 10) || 0;
-        await setDoc(doc(db, getPostCollectionId(), postId), { views: current + 1 }, { merge: true });
-      } catch (err) {
-        console.error('view increment failed', err);
-      }
-    }
-  }
-
-  function renderBadges(post) {
-    const badges = [];
-    badges.push(`<span class="badge">${post.ownerName}</span>`);
-    badges.push(`<span class="badge">${post.likes} polubień</span>`);
-    badges.push(`<span class="badge">${post.commentsCount} komentarzy</span>`);
-    if (post.isDraft) badges.push('<span class="badge">Szkic</span>');
-    if (!post.commentsEnabled) badges.push('<span class="badge">Komentarze wyłączone</span>');
-    postBadges.innerHTML = badges.join('');
-  }
-
-  function renderPost(post) {
-    currentPost = post;
-
-    postTitleView.textContent = post.title;
-    postSubtitle.textContent = post.ownerName ? `Autor: ${post.ownerName}` : 'Post społeczności';
-    postImage.src = post.image;
-    postImage.alt = post.title;
-    postImage.onerror = () => { postImage.src = 'https://via.placeholder.com/1200x675?text=No+image'; };
-    postBody.textContent = post.body || 'Brak treści.';
-    renderBadges(post);
-
-    statOwner.textContent = `Autor: ${post.ownerName || '—'}`;
-    statViews.textContent = `Wyświetlenia: ${post.views}`;
-    statLikes.textContent = `Polubienia: ${post.likes}`;
-    statComments.textContent = `Komentarze: ${post.commentsCount}`;
-    statCreated.textContent = `Utworzono: ${fmtDate(post.createdAt)}`;
-    statUpdated.textContent = `Zaktualizowano: ${fmtDate(post.updatedAt)}`;
-    statStatus.textContent = `Status: ${post.isDraft ? 'Szkic' : 'Opublikowany'}`;
-
-    if (accountDoc?.id && accountDoc.id === post.ownerUid) {
-      editBtn.style.display = 'inline-flex';
-      editBtn.href = `/posty/create?id=${encodeURIComponent(post.id)}&sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-    } else {
-      editBtn.style.display = 'none';
-    }
-
-    commentFormWrap.style.display = post.commentsEnabled && accountDoc?.id ? 'block' : 'none';
-
-    commentsVisible = false;
-    commentsWrap.innerHTML = '<div class="mini-stat">Kliknij „Komentarze”, aby wyświetlić listę.</div>';
-    commentToggleBtn.innerHTML = '<span class="material-symbols-rounded">chat</span> Komentarze';
-  }
-
-  function renderComments(comments) {
-    if (!comments || !comments.length) {
-      commentsWrap.innerHTML = '<div class="mini-stat">Brak komentarzy.</div>';
-      return;
-    }
-
-    commentsWrap.innerHTML = comments.map(c => `
-      <div class="comment-item">
-        <div class="head">
-          <span>${safeText(c.author || c.display_name || 'Anonim')}</span>
-          <span>${fmtDate(c.createdAt)}</span>
-        </div>
-        <div class="body">${safeText(c.text || '')}</div>
-      </div>
-    `).join('');
-  }
-
-  async function loadComments(postId) {
-    if (!postId) return;
-
-    try {
-      const snap = await getDoc(doc(db, getPostCollectionId(), postId));
-      if (!snap.exists()) {
-        commentsWrap.innerHTML = '<div class="mini-stat">Nie udało się wczytać komentarzy.</div>';
-        return;
-      }
-      const data = snap.data() || {};
-      const comments = Array.isArray(data.comments) ? data.comments : [];
-      renderComments(comments);
-    } catch (e) {
-      console.error(e);
-      commentsWrap.innerHTML = '<div class="mini-stat">Nie udało się wczytać komentarzy.</div>';
-    }
-  }
-
-  async function loadPostPage() {
-    const postId = getPostIdFromUrl();
-    const collectionId = getPostCollectionId();
-
-    if (!postId) {
-      postTitleView.textContent = 'Brak ID posta';
-      postSubtitle.textContent = 'Link musi zawierać parametr ?id=... albo ?postid=...';
-      postBody.textContent = 'Nie znaleziono posta do wyświetlenia.';
-      statStatus.textContent = 'Status: brak ID';
-      return;
-    }
-
-    try {
-      const ref = doc(db, collectionId, postId);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        postTitleView.textContent = 'Post nie istnieje';
-        postSubtitle.textContent = 'Nie udało się odnaleźć dokumentu w Firestore.';
-        postBody.textContent = 'Sprawdź link lub kolekcję.';
-        statStatus.textContent = 'Status: brak dokumentu';
-        return;
-      }
-
-      const post = normalizePostData(snap);
-      renderPost(post);
-
-      await maybeIncrementViews(post.id);
-
-      const updatedSnap = await getDoc(ref);
-      if (updatedSnap.exists()) {
-        const fresh = normalizePostData(updatedSnap);
-        renderPost(fresh);
-      }
-    } catch (e) {
-      console.error('loadPostPage failed', e);
-      toastMsg('Nie udało się wczytać posta.');
-      postTitleView.textContent = 'Błąd ładowania';
-      postSubtitle.textContent = 'Sprawdź połączenie lub reguły Firestore.';
-      postBody.textContent = 'Nie udało się załadować posta.';
-    }
-  }
-
-  async function ensureLikeLimit() {
-    if (!currentPost?.id || !accountDoc?.id) return false;
-    const likeKey = `nh_like_${currentPost.id}_${accountDoc.id}`;
-    try {
-      return localStorage.getItem(likeKey) !== '1';
-    } catch (e) {
-      return true;
-    }
-  }
-
-  async function markLiked() {
-    try {
-      const likeKey = `nh_like_${currentPost.id}_${accountDoc.id}`;
-      localStorage.setItem(likeKey, '1');
-    } catch (e) {}
-  }
-
-  const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
-  const STEP = 72 * 60 * 60 * 1000;
 
   function getNextEpisodeTime() {
     const now = Date.now();
-    const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
+    const anchor = new Date('2026-06-01T21:00:00+02:00').getTime();
+    const step = 72 * 60 * 60 * 1000;
+    const next = anchor + Math.ceil((now - anchor) / step) * step;
     return new Date(next);
   }
 
@@ -843,94 +726,119 @@
     }, 120);
   }
 
+  async function initPage() {
+    if (logoImg) logoImg.src = defaultLogo;
+    if (drawerLogo) drawerLogo.src = defaultLogo;
+    if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
+
+    applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
+    if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
+    if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
+
+    await bootstrapSessionFromUrl();
+    await resolveProfileDoc();
+    updateEditButton();
+
+    if (profileAccountDoc) {
+      profileTitle.textContent = `Profil Użytkownika ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      profileSubtitle.textContent = `Sesja aktywna: ${safeText(accountDoc?.display_name || profileAccountDoc.display_name, 'Konto')}`;
+      profileName.textContent = safeText(profileAccountDoc.display_name, 'Konto');
+      profileNick.textContent = `Nick: ${safeText(profileAccountDoc.display_name, '—')}`;
+      profileUid.textContent = `UID: ${safeText(profileAccountDoc.id, '—')}`;
+      profileAvatar.src = (await loadProfilePicture(profileAccountDoc.id)) || profileAccountDoc.avatar || 'https://via.placeholder.com/220x220?text=Avatar';
+      document.title = `NyanHappi12 — Profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      await loadPublishedMaterials();
+    } else if (accountDoc) {
+      profileTitle.textContent = `Profil Użytkownika ${safeText(accountDoc.display_name, 'Konto')}`;
+      profileSubtitle.textContent = 'Nie udało się wczytać profilu docelowego.';
+      profileName.textContent = safeText(accountDoc.display_name, 'Konto');
+      profileNick.textContent = `Nick: ${safeText(accountDoc.display_name, '—')}`;
+      profileUid.textContent = `UID: ${safeText(accountDoc.id, '—')}`;
+      profileAvatar.src = 'https://via.placeholder.com/220x220?text=Avatar';
+      profileBio.textContent = 'Nie udało się wczytać profilu docelowego.';
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak danych profilu do wyświetlenia.</div>';
+    } else {
+      profileTitle.textContent = 'Profil Użytkownika';
+      profileSubtitle.textContent = 'Nie wykryto aktywnej sesji.';
+      profileName.textContent = 'Wczytywanie...';
+      profileNick.textContent = 'Nick: —';
+      profileUid.textContent = 'UID: Wczytywanie...';
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak aktywnej sesji. Zaloguj się.</div>';
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  }
+
   menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
   drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
   drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
 
-  if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
-  if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
-  applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
-
-  likeBtn?.addEventListener('click', async () => {
-    if (!accountDoc?.id) {
-      toastMsg('Zaloguj się, aby lajkować.');
-      return;
-    }
-    if (!currentPost?.id) return;
-
-    if (!(await ensureLikeLimit())) {
-      toastMsg('Już polubiłeś ten post.');
-      return;
-    }
-
+  onAuthStateChanged(auth, async (user) => {
     try {
-      await updateDoc(doc(db, getPostCollectionId(), currentPost.id), {
-        likes: increment(1)
-      });
-      await markLiked();
-      toastMsg('Polubiono post.');
-      await loadPostPage();
+      if (user) {
+        accountDoc = await ensureAccountDocForUser(user);
+        setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
+
+        const { profileId } = getUrlIds();
+        const finalProfileId = profileId || accountDoc.id;
+        setUrlIds(accountDoc.id, finalProfileId);
+
+        if (accountDoc.theme) applyTheme(accountDoc.theme, false);
+      } else {
+        const { sessionId, profileId } = getUrlIds();
+        if (sessionId) {
+          accountDoc = await loadAccountById(sessionId);
+        } else {
+          accountDoc = null;
+        }
+
+        if (accountDoc) {
+          setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
+          if (!profileId) setUrlIds(accountDoc.id, accountDoc.id);
+        } else {
+          setAccountMenuLabel(null, null);
+        }
+      }
+
+      await resolveProfileDoc();
+      updateEditButton();
     } catch (e) {
       console.error(e);
-      toastMsg('Nie udało się polubić posta.');
     }
   });
 
-  commentToggleBtn?.addEventListener('click', async () => {
-    if (!currentPost?.id) return;
-    commentsVisible = !commentsVisible;
-
-    if (commentsVisible) {
-      await loadComments(currentPost.id);
-      commentToggleBtn.innerHTML = '<span class="material-symbols-rounded">chat</span> Ukryj komentarze';
-    } else {
-      commentsWrap.innerHTML = '<div class="mini-stat">Kliknij „Komentarze”, aby wyświetlić listę.</div>';
-      commentToggleBtn.innerHTML = '<span class="material-symbols-rounded">chat</span> Komentarze';
-    }
-  });
-
-  sendCommentBtn?.addEventListener('click', async () => {
-    if (!accountDoc?.id) {
-      toastMsg('Zaloguj się, aby komentować.');
-      return;
-    }
-    if (!currentPost?.id || !currentPost.commentsEnabled) return;
-
-    const text = String(newCommentText.value || '').trim();
-    if (!text) {
-      toastMsg('Napisz komentarz.');
+  accountLink?.addEventListener('click', async (e) => {
+    if (accountDoc && accountDoc.id) {
+      e.preventDefault();
+      const { profileId } = getUrlIds();
+      const finalProfileId = profileId || profileAccountDoc?.id || accountDoc.id;
+      window.location.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(finalProfileId)}`;
       return;
     }
 
+    e.preventDefault();
     try {
-      const ref = doc(db, getPostCollectionId(), currentPost.id);
-      const snap = await getDoc(ref);
-      const data = snap.exists() ? (snap.data() || {}) : {};
-      const comments = Array.isArray(data.comments) ? data.comments : [];
-
-      const newComment = {
-        author_uid: accountDoc.id,
-        author: accountDoc.display_name || accountDoc.email?.split('@')[0] || 'Konto',
-        text,
-        createdAt: new Date().toISOString()
-      };
-
-      await setDoc(ref, {
-        comments: [...comments, newComment],
-        comments_count: comments.length + 1
-      }, { merge: true });
-
-      newCommentText.value = '';
-      toastMsg('Dodano komentarz.');
-      await loadComments(currentPost.id);
-      await loadPostPage();
-    } catch (e) {
-      console.error(e);
-      toastMsg('Nie udało się dodać komentarza.');
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      alert('Błąd logowania: ' + (err && err.message || err));
+      window.location.href = '/login/';
     }
   });
 
-  homeLink?.addEventListener('dblclick', () => {
+  accountLink?.addEventListener('contextmenu', async (ev) => {
+    ev.preventDefault();
+    if (confirm('Wylogować?')) {
+      await signOut(auth);
+      try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+      accountDoc = null;
+      profileAccountDoc = null;
+      setAccountMenuLabel(null, null);
+      alert('Wylogowano');
+    }
+  });
+
+  document.getElementById('home-link')?.addEventListener('dblclick', () => {
     const l = prompt('Podaj URL logo (pusty = placeholder):', logoImg?.src || defaultLogo);
     if (l !== null) {
       if (logoImg) logoImg.src = l || defaultLogo;
@@ -946,17 +854,6 @@
       hero.style.backgroundImage = `url('${h || defaultHero}')`;
     }
   });
-
-  async function initPage() {
-    if (logoImg) logoImg.src = defaultLogo;
-    if (drawerLogo) drawerLogo.src = defaultLogo;
-    if (hero) hero.style.backgroundImage = `url('${defaultHero}')`;
-
-    await loadAccount();
-    await loadPostPage();
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-  }
 
   initPage();
 </script>
