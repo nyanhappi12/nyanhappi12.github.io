@@ -461,60 +461,90 @@ setInterval(updateCountdown, 1000);
   }
 
   async function ensureAccountDocForUser(user) {
-      const ref = doc(db, 'accounts', user.uid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
-        const created = {
-          display_name: user.displayName || nickFromEmail || 'Użytkownik',
-          email: user.email || null,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(ref, created);
-        return { id: user.uid, ...created };
-      }
-      return { id: snap.id, ...snap.data() };
-    }
+  let sessionAccountDoc = null;
 
-    function updateAccountLink() {
-      if (!accountLink) return;
-      if (accountDoc?.id) {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`;
-        accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-      } else {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
-        accountLink.href = '/login/';
-      }
-    }
+async function ensureAccountDocForUser(user) {
+  const ref = doc(db, 'accounts', user.uid);
+  const snap = await getDoc(ref);
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        accountDoc = await ensureAccountDocForUser(user);
-        updateAccountLink();
-        try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
-        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
-      } else {
-        accountDoc = null;
-        updateAccountLink();
-        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
-      }
-    });
+  if (!snap.exists()) {
+    const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+    const created = {
+      display_name: user.displayName || nickFromEmail || 'Użytkownik',
+      email: user.email || null,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(ref, created);
+    return { id: user.uid, ...created };
+  }
 
-    accountLink?.addEventListener('click', async (e) => {
-  if(accountDoc?.id){
+  return { id: snap.id, ...snap.data() };
+}
+
+function updateAccountLink() {
+  if (!accountLink) return;
+
+  if (sessionAccountDoc?.id) {
+    const nick = sessionAccountDoc.display_name || sessionAccountDoc.email?.split('@')[0] || 'Konto';
+    accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${nick}`;
+    accountLink.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(sessionAccountDoc.id)}`;
+  } else {
+    accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+    accountLink.href = '/login/';
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    sessionAccountDoc = await ensureAccountDocForUser(user);
+    updateAccountLink();
+
+    try {
+      if (sessionAccountDoc && sessionAccountDoc.theme) applyTheme(sessionAccountDoc.theme, false);
+    } catch (e) {}
+
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('sessionid', sessionAccountDoc.id);
+      u.searchParams.set('session_id', sessionAccountDoc.id);
+      window.history.replaceState({}, '', u.toString());
+    } catch (e) {}
+  } else {
+    sessionAccountDoc = null;
+    updateAccountLink();
+
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete('sessionid');
+      u.searchParams.delete('session_id');
+      window.history.replaceState({}, '', u.toString());
+    } catch (e) {}
+  }
+});
+
+accountLink?.addEventListener('click', async (e) => {
+  if (sessionAccountDoc?.id) {
     e.preventDefault();
-
-    window.location.href =
-      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-
+    window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(sessionAccountDoc.id)}`;
     return;
   }
 
-  try{
-    e.preventDefault();
+  e.preventDefault();
+  try {
     await signInWithPopup(auth, provider);
-  }catch(err){
-    console.error(err);
+  } catch (err) {
+    alert('Błąd logowania: ' + (err && err.message || err));
+  }
+});
+
+accountLink?.addEventListener('contextmenu', async (ev) => {
+  ev.preventDefault();
+  if (confirm('Wylogować?')) {
+    await signOut(auth);
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    alert('Wylogowano');
+  }
+});
 
     // fallback
     window.location.href = '/login/';
