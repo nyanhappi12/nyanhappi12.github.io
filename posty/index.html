@@ -520,15 +520,6 @@ setInterval(updateCountdown, 1000);
     window.location.href = '/login/';
   }
 });
-    accountLink?.addEventListener('contextmenu', async (ev) => {
-      ev.preventDefault();
-      if (confirm('Wylogować?')) {
-        await signOut(auth);
-        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-        alert('Wylogowano');
-      }
-    });
-
   function normalizePost(docSnap) {
     const data = docSnap.data() || {};
     const title = safeText(data.title || data.name || 'Bez tytułu', docSnap.id);
