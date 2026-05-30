@@ -209,7 +209,7 @@
     </section>
 
     <footer>
-      <div>© 2026 NyanHappi12 — wszelkie prawa zastrzeżone.</div>
+      <div>© 2026 NyanHappi12 - wszelkie prawa zastrzeżone.</div>
       <div style="margin-top:6px;font-size:12px">Motyw: <span id="footer-theme">ciemny</span></div>
     </footer>
   </main>
@@ -220,7 +220,7 @@
   <!-- countdown -->
   <div id="countdown" class="countdown" role="status" aria-live="polite">
     <div style="font-size:12px;font-weight:600">Do następnego odcinka zostało:</div>
-    <div id="countdown-value" class="time">--:--:--</div>
+    <div id="countdown-value" class="time">Wczytywanie...</div>
   </div>
 
   <!-- SCRIPT: Firebase + page logic -->
@@ -375,27 +375,66 @@ drawerBackdrop?.addEventListener('click', (ev)=>{
 
     // Auth state & accountLink UI
     let accountDoc = null;
-    onAuthStateChanged(auth, async (user)=>{
-      if(user){
-        const docRef = doc(db,'accounts', user.uid);
-        try{
-          const snap = await getDoc(docRef);
-          if(!snap.exists()){
-            await setDoc(docRef, { display_name: user.displayName || user.email || 'Użytkownik', createdAt: new Date().toISOString() });
-            accountDoc = { display_name: user.displayName || user.email || 'Użytkownik', id: user.uid };
-          } else {
-            accountDoc = { id: snap.id, ...snap.data() };
-          }
-          if(accountLink){ accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`; accountLink.href=`/konto/${accountDoc.id}`; }
-          try{ if(accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); }catch(e){}
-          try{ const u = new URL(window.location.href); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); }catch(e){}
-        }catch(e){ console.error(e) }
+    async function ensureAccountDocForUser(user) {
+      const ref = doc(db, 'accounts', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+        const created = {
+          display_name: user.displayName || nickFromEmail || 'Użytkownik',
+          email: user.email || null,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(ref, created);
+        return { id: user.uid, ...created };
+      }
+      return { id: snap.id, ...snap.data() };
+    }
+
+    function updateAccountLink() {
+      if (!accountLink) return;
+      if (accountDoc?.id) {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`;
+        accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+      } else {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+        accountLink.href = '/login/';
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        accountDoc = await ensureAccountDocForUser(user);
+        updateAccountLink();
+        try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
+        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
       } else {
         accountDoc = null;
-        if(accountLink){ accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`; accountLink.href = '/login/'; }
-        try{ const u = new URL(window.location.href); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); }catch(e){}
+        updateAccountLink();
+        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
       }
     });
+
+    accountLink?.addEventListener('click', async (e) => {
+  if(accountDoc?.id){
+    e.preventDefault();
+
+    window.location.href =
+      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+
+    return;
+  }
+
+  try{
+    e.preventDefault();
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    console.error(err);
+
+    // fallback
+    window.location.href = '/login/';
+  }
+});
 
     accountLink?.addEventListener('click', async (e)=>{
       const user = auth.currentUser;
