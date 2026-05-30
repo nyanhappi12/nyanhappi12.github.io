@@ -347,7 +347,7 @@ setInterval(updateCountdown, 1000);
       return { id: snap.id, ...snap.data() };
     }
 
-    async function ensureAccountDocForUser(user) {
+   async function ensureAccountDocForUser(user) {
       const ref = doc(db, 'accounts', user.uid);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
@@ -379,33 +379,34 @@ setInterval(updateCountdown, 1000);
         accountDoc = await ensureAccountDocForUser(user);
         updateAccountLink();
         try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
-        try {
-          const u = new URL(window.location.href);
-          u.searchParams.set('sessionid', accountDoc.id);
-          u.searchParams.set('session_id', accountDoc.id);
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {}
+        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
       } else {
         accountDoc = null;
         updateAccountLink();
-        try {
-          const u = new URL(window.location.href);
-          u.searchParams.delete('sessionid');
-          u.searchParams.delete('session_id');
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {}
+        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
       }
     });
 
     accountLink?.addEventListener('click', async (e) => {
-      if (accountDoc?.id) {
-        window.location.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}`;
-        return;
-      }
-      e.preventDefault();
-      try { await signInWithPopup(auth, provider); } catch (err) { alert('Błąd logowania: ' + (err && err.message || err)); }
-    });
+  if(accountDoc?.id){
+    e.preventDefault();
 
+    window.location.href =
+      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+
+    return;
+  }
+
+  try{
+    e.preventDefault();
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    console.error(err);
+
+    // fallback
+    window.location.href = '/login/';
+  }
+});
     accountLink?.addEventListener('contextmenu', async (ev) => {
       ev.preventDefault();
       if (confirm('Wylogować?')) {
@@ -414,6 +415,7 @@ setInterval(updateCountdown, 1000);
         alert('Wylogowano');
       }
     });
+
 
     if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
     if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
