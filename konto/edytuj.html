@@ -308,565 +308,656 @@
     <div style="font-size:12px;font-weight:600">Do następnego odcinka zostało:</div>
     <div id="countdown-value" class="time">Wczytywanie...</div>
   </div>  <div id="toast" class="toast" role="alert" aria-live="assertive"></div>  <script type="module">
-    const CONFIG = {
-      FIREBASE: {
-        apiKey: "AIzaSyA6B1a0I1m7hXPwblW8diKsW1nnDVmGEP0",
-        authDomain: "nyanhappi12.firebaseapp.com",
-        projectId: "nyanhappi12",
-        storageBucket: "nyanhappi12.firebasestorage.app",
-        messagingSenderId: "197042141276",
-        appId: "1:197042141276:web:d9f1c73f569f9180a40e99",
-        measurementId: "G-RW1PDZR1X5"
+  const CONFIG = {
+    FIREBASE: {
+      apiKey: "AIzaSyA6B1a0I1m7hXPwblW8diKsW1nnDVmGEP0",
+      authDomain: "nyanhappi12.firebaseapp.com",
+      projectId: "nyanhappi12",
+      storageBucket: "nyanhappi12.firebasestorage.app",
+      messagingSenderId: "197042141276",
+      appId: "1:197042141276:web:d9f1c73f569f9180a40e99",
+      measurementId: "G-RW1PDZR1X5"
+    }
+  };
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    collection,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+  const app = initializeApp(CONFIG.FIREBASE);
+  try { getAnalytics(app); } catch (e) {}
+
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  const drawerWrap = document.getElementById('drawerWrap');
+  const menuOpen = document.getElementById('menu-open');
+  const drawerClose = document.getElementById('drawerClose');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
+  const accountLink = document.getElementById('account-link');
+  const footerTheme = document.getElementById('footer-theme');
+  const themeLightBtn = document.getElementById('theme-light');
+  const themeDarkBtn = document.getElementById('theme-dark');
+  const toast = document.getElementById('toast');
+
+  const profileTitle = document.getElementById('profileTitle');
+  const profileSubtitle = document.getElementById('profileSubtitle');
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileName = document.getElementById('profileName');
+  const profileUid = document.getElementById('profileUid');
+  const profileSession = document.getElementById('profileSession');
+  const profileBio = document.getElementById('profileBio');
+  const profileTheme = document.getElementById('statTheme');
+  const profileCreated = document.getElementById('statCreated');
+  const statMaterials = document.getElementById('statMaterials');
+  const statViews = document.getElementById('statViews');
+  const materialsGrid = document.getElementById('materialsGrid');
+  const countdownValue = document.getElementById('countdown-value');
+  const homeLink = document.getElementById('home-link');
+  const logoImg = document.getElementById('logo-img');
+  const drawerLogo = document.getElementById('drawer-logo');
+  const hero = document.getElementById('hero');
+  const editProfileBtn = document.getElementById('editProfileBtn');
+
+  const THEME_KEY = 'nh_theme';
+  const SESSION_KEY = 'nh_session_id';
+
+  const defaultLogo = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png';
+  const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Edytuj+profil';
+  const fallbackAvatar = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Avatar';
+
+  let accountDoc = null;
+  let profileAccountDoc = null;
+  let allowedToEdit = false;
+
+  function toastMsg(msg) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function safeText(v, fallback = '—') {
+    const s = String(v ?? '').trim();
+    return s ? s : fallback;
+  }
+
+  function getUrlIds() {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId =
+      params.get('sessionid') ||
+      params.get('session_id') ||
+      (() => {
+        try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; }
+      })();
+
+    const profileId =
+      params.get('profileid') ||
+      params.get('profile_id') ||
+      sessionId;
+
+    return { sessionId, profileId };
+  }
+
+  function setUrlIds(sessionId, profileId) {
+    const u = new URL(window.location.href);
+    if (sessionId) u.searchParams.set('sessionid', sessionId);
+    else u.searchParams.delete('sessionid');
+
+    if (profileId) u.searchParams.set('profileid', profileId);
+    else u.searchParams.delete('profileid');
+
+    window.history.replaceState({}, '', u.toString());
+
+    try {
+      if (sessionId) localStorage.setItem(SESSION_KEY, sessionId);
+      else localStorage.removeItem(SESSION_KEY);
+    } catch (e) {}
+  }
+
+  function applyTheme(theme, persistToFirestore = true) {
+    const t = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    document.body.setAttribute('data-theme', t);
+    if (footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
+
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+
+    if (persistToFirestore && accountDoc && accountDoc.id) {
+      setDoc(doc(db, 'accounts', accountDoc.id), { theme: t }, { merge: true }).catch(() => {});
+    }
+  }
+
+  function getNextEpisodeTime() {
+    const now = Date.now();
+    const anchor = new Date('2026-06-01T21:00:00+02:00').getTime();
+    const step = 72 * 60 * 60 * 1000;
+    const next = anchor + Math.ceil((now - anchor) / step) * step;
+    return new Date(next);
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function updateCountdown() {
+    const el = document.getElementById('countdown-value');
+    if (!el) return;
+
+    const now = new Date();
+    const target = getNextEpisodeTime();
+    const diff = Math.max(0, target - now);
+
+    const s = Math.floor(diff / 1000) % 60;
+    const m = Math.floor(diff / 60000) % 60;
+    const h = Math.floor(diff / 3600000) % 24;
+    const d = Math.floor(diff / (24 * 3600000));
+
+    const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+
+    el.style.transform = 'translateY(-6px) scale(0.99)';
+    el.style.opacity = '0.85';
+    setTimeout(() => {
+      el.textContent = out;
+      el.style.transform = 'translateY(0) scale(1)';
+      el.style.opacity = '1';
+    }, 120);
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+  function removeGlobalDrawerListeners() {
+    document.removeEventListener('pointerdown', outsideDrawerHandler);
+    document.removeEventListener('touchstart', outsideDrawerHandler);
+    document.removeEventListener('keydown', escCloseHandler);
+  }
+
+  function closeDrawer() {
+    if (!drawerWrap) return;
+    drawerWrap.classList.remove('open');
+    const drawerEl = drawerWrap.querySelector('.drawer');
+    let cleaned = false;
+
+    function cleanUpAfterClose() {
+      if (cleaned) return;
+      cleaned = true;
+      drawerWrap.setAttribute('aria-hidden', 'true');
+      removeGlobalDrawerListeners();
+      if (drawerEl) drawerEl.removeEventListener('transitionend', onTransitionEnd);
+    }
+
+    function onTransitionEnd(e) {
+      if (e.target === drawerEl) cleanUpAfterClose();
+    }
+
+    if (drawerEl) drawerEl.addEventListener('transitionend', onTransitionEnd);
+    setTimeout(cleanUpAfterClose, 700);
+  }
+
+  function openDrawer() {
+    if (!drawerWrap) return;
+    drawerWrap.classList.add('open');
+    drawerWrap.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {
+      document.addEventListener('pointerdown', outsideDrawerHandler);
+      document.addEventListener('touchstart', outsideDrawerHandler, { passive: true });
+      document.addEventListener('keydown', escCloseHandler);
+    }, 0);
+  }
+
+  function escCloseHandler(e) {
+    if (e.key === 'Escape' || e.key === 'Esc') closeDrawer();
+  }
+
+  function outsideDrawerHandler(e) {
+    if (!drawerWrap || !drawerWrap.classList.contains('open')) return;
+    const drawerEl = drawerWrap.querySelector('.drawer');
+    const path = e.composedPath ? e.composedPath() : (e.path || []);
+    const target = path && path.length ? path[0] : e.target;
+    if (drawerEl && drawerEl.contains(target)) return;
+    if (menuOpen && menuOpen.contains(target)) return;
+    closeDrawer();
+  }
+
+  async function loadAccountById(uid) {
+    if (!uid) return null;
+    const ref = doc(db, 'accounts', uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  }
+
+  async function bootstrapSessionFromUrl() {
+    const { sessionId } = getUrlIds();
+    if (!sessionId) return null;
+
+    try {
+      const data = await loadAccountById(sessionId);
+      if (data) {
+        accountDoc = data;
+        setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
+        return accountDoc;
       }
+    } catch (e) {
+      console.error('bootstrapSessionFromUrl failed', e);
+    }
+
+    return null;
+  }
+
+  async function ensureAccountDocForUser(user) {
+    const ref = doc(db, 'accounts', user.uid);
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+      const created = {
+        display_name: user.displayName || nickFromEmail || 'Użytkownik',
+        email: user.email || null,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(ref, created);
+      return { id: user.uid, ...created };
+    }
+
+    return { id: snap.id, ...snap.data() };
+  }
+
+  function setAccountMenuLabel(name, uid) {
+    if (!accountLink) return;
+
+    if (name && uid) {
+      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${safeText(name, 'Konto')}`;
+      accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc?.id || uid)}&profileid=${encodeURIComponent(uid)}`;
+    } else {
+      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+      accountLink.href = '/login/';
+    }
+  }
+
+  function buildThumb(data, id) {
+    return (
+      data.imageURL ||
+      data.imageUrl ||
+      data.image_url ||
+      data.thumb ||
+      data.thumbnail ||
+      data.downloadURL ||
+      data.download_url ||
+      `https://via.placeholder.com/640x360?text=${encodeURIComponent(id)}`
+    );
+  }
+
+  function normalizeOwner(data) {
+    return safeText(
+      data.owner_uid ||
+      data.OwnerUID ||
+      data.ownerUid ||
+      data.Owner ||
+      data.Username ||
+      data.display_name ||
+      data.owner,
+      ''
+    );
+  }
+
+  async function loadProfilePicture(uid) {
+    try {
+      const ref = doc(db, 'profile_pictures', uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      const data = snap.data() || {};
+      return data.url || data.imageURL || data.image_url || data.downloadURL || data.src || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function resolveProfileDoc() {
+    const { profileId } = getUrlIds();
+    const targetId = profileId || accountDoc?.id || null;
+    if (!targetId) return null;
+
+    try {
+      const data = await loadAccountById(targetId);
+      if (data) {
+        profileAccountDoc = data;
+        return profileAccountDoc;
+      }
+    } catch (e) {
+      console.error('resolveProfileDoc failed', e);
+    }
+
+    return null;
+  }
+
+  function updateEditButton() {
+    if (!editProfileBtn) return;
+
+    const sessionId = accountDoc?.id;
+    const profileId = profileAccountDoc?.id;
+
+    if (sessionId && profileId && sessionId === profileId) {
+      editProfileBtn.style.display = 'inline-flex';
+      editProfileBtn.onclick = () => {
+        window.location.href = `/konto/edytuj.html?account=${encodeURIComponent(sessionId)}&sessionid=${encodeURIComponent(sessionId)}`;
+      };
+    } else {
+      editProfileBtn.style.display = 'none';
+    }
+  }
+
+  function fillFormFromProfile() {
+    if (!profileAccountDoc) return;
+
+    const displayNameInput = document.getElementById('displayName');
+    const bioInput = document.getElementById('bio');
+    const avatarUrlInput = document.getElementById('avatarUrl');
+    const themeSelect = document.getElementById('themeSelect');
+
+    if (displayNameInput) displayNameInput.value = profileAccountDoc.display_name || '';
+    if (bioInput) bioInput.value = profileAccountDoc.bio || '';
+    if (avatarUrlInput) avatarUrlInput.value = profileAccountDoc.avatar || '';
+    if (themeSelect) themeSelect.value = profileAccountDoc.theme || localStorage.getItem(THEME_KEY) || 'dark';
+
+    if (profileAvatar) profileAvatar.src = profileAccountDoc.avatar || fallbackAvatar;
+    if (profileName) profileName.textContent = profileAccountDoc.display_name || 'Konto';
+    if (profileUid) profileUid.textContent = `UID: ${profileAccountDoc.id || '—'}`;
+    if (profileSession) profileSession.textContent = `Sesja: ${accountDoc?.id || '—'}`;
+    if (profileCreated) profileCreated.textContent = profileAccountDoc.createdAt ? new Date(profileAccountDoc.createdAt).toLocaleString() : '—';
+    if (profileTheme) profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
+  }
+
+  async function loadPublishedMaterials() {
+    if (!materialsGrid) return;
+
+    materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Ładowanie materiałów...</div>';
+
+    if (!profileAccountDoc || !profileAccountDoc.id) {
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak aktywnego profilu do wyświetlenia.</div>';
+      return;
+    }
+
+    try {
+      const [imageSnaps, postSnaps] = await Promise.allSettled([
+        getDocs(collection(db, 'images_metadata')),
+        getDocs(collection(db, 'user_posts'))
+      ]);
+
+      const list = [];
+      let totalViews = 0;
+
+      if (imageSnaps.status === 'fulfilled') {
+        imageSnaps.value.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const title = safeText(data.name, docSnap.id);
+          const ownerValue = normalizeOwner(data);
+          const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+          const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+
+          const isMine =
+            ownerUid === profileAccountDoc.id ||
+            ownerValue === safeText(profileAccountDoc.display_name, '') ||
+            ownerValue === profileAccountDoc.id;
+
+          if (!isMine) return;
+
+          totalViews += views;
+          list.push({
+            kind: 'image',
+            id: docSnap.id,
+            title,
+            owner: ownerValue || profileAccountDoc.display_name || '—',
+            views,
+            thumb: buildThumb(data, docSnap.id)
+          });
+        });
+      }
+
+      if (postSnaps.status === 'fulfilled') {
+        postSnaps.value.forEach(docSnap => {
+          const data = docSnap.data() || {};
+          const title = safeText(data.title || data.name, docSnap.id);
+          const ownerValue = normalizeOwner(data);
+          const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
+          const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
+
+          const isMine =
+            ownerUid === profileAccountDoc.id ||
+            ownerValue === safeText(profileAccountDoc.display_name, '') ||
+            ownerValue === profileAccountDoc.id;
+
+          if (!isMine) return;
+
+          totalViews += views;
+          list.push({
+            kind: 'post',
+            id: docSnap.id,
+            title,
+            owner: ownerValue || profileAccountDoc.display_name || '—',
+            views,
+            thumb: data.imageURL || data.imageUrl || data.coverURL || 'https://via.placeholder.com/640x360?text=Post'
+          });
+        });
+      }
+
+      if (statMaterials) statMaterials.textContent = String(list.length);
+      if (statViews) statViews.textContent = String(totalViews);
+      if (profileTheme) profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
+      if (profileTitle) profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      if (profileSubtitle) profileSubtitle.textContent = `Edytujesz profil: ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      if (profileBio) profileBio.textContent = profileAccountDoc.bio || 'Profil nie ma jeszcze opisu.';
+
+      if (!list.length) {
+        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak opublikowanych materiałów przypisanych do tego konta.</div>';
+        return;
+      }
+
+      materialsGrid.innerHTML = '';
+      list.slice(0, 12).forEach(item => {
+        const a = document.createElement('a');
+        a.className = 'material-card';
+
+        if (item.kind === 'image') {
+          a.href = `/galeria/obrazek/?sessionid=${encodeURIComponent(accountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&name=${encodeURIComponent(item.id)}`;
+        } else {
+          a.href = `/posty/?sessionid=${encodeURIComponent(accountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&postid=${encodeURIComponent(item.id)}`;
+        }
+
+        a.innerHTML = `
+          <img src="${item.thumb}" alt="${String(item.title).replace(/"/g, '&quot;')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/640x360?text=No+image'">
+          <div class="meta">
+            <div class="title">${item.title}</div>
+            <div class="sub">${item.owner || profileAccountDoc.display_name || '—'} · ${item.views} views</div>
+          </div>
+        `;
+        materialsGrid.appendChild(a);
+      });
+    } catch (e) {
+      console.error('loadPublishedMaterials failed', e);
+      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Nie udało się wczytać materiałów.</div>';
+    }
+  }
+
+  async function saveProfile() {
+    const displayNameInput = document.getElementById('displayName');
+    const bioInput = document.getElementById('bio');
+    const avatarUrlInput = document.getElementById('avatarUrl');
+    const themeSelect = document.getElementById('themeSelect');
+    const saveBtn = document.getElementById('saveBtn');
+
+    if (!allowedToEdit || !profileAccountDoc?.id) {
+      toastMsg('Nie masz uprawnień do edycji tego profilu.');
+      return;
+    }
+
+    const display_name = String(displayNameInput?.value || '').trim();
+    const bio = String(bioInput?.value || '').trim();
+    const avatar = String(avatarUrlInput?.value || '').trim();
+    const theme = themeSelect?.value === 'light' ? 'light' : 'dark';
+
+    const payload = {
+      display_name: display_name || profileAccountDoc.display_name || 'Użytkownik',
+      bio,
+      avatar: avatar || null,
+      theme,
+      updatedAt: new Date().toISOString()
     };
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+    try {
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span> Zapisywanie...';
+      }
 
-    const app = initializeApp(CONFIG.FIREBASE);
-    try { getAnalytics(app); } catch (e) {}
+      await setDoc(doc(db, 'accounts', profileAccountDoc.id), payload, { merge: true });
 
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const provider = new GoogleAuthProvider();
+      if (avatar) {
+        await setDoc(doc(db, 'profile_pictures', profileAccountDoc.id), {
+          url: avatar,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
 
-    const drawerWrap = document.getElementById('drawerWrap');
-    const menuOpen = document.getElementById('menu-open');
-    const drawerClose = document.getElementById('drawerClose');
-    const drawerBackdrop = document.getElementById('drawerBackdrop');
-    const accountLink = document.getElementById('account-link');
-    const footerTheme = document.getElementById('footer-theme');
-    const themeLightBtn = document.getElementById('theme-light');
-    const themeDarkBtn = document.getElementById('theme-dark');
-    const toast = document.getElementById('toast');
+      profileAccountDoc = { ...profileAccountDoc, ...payload };
+      accountDoc = { ...accountDoc, ...payload };
 
-    const profileTitle = document.getElementById('profileTitle');
-    const profileSubtitle = document.getElementById('profileSubtitle');
-    const profileAvatar = document.getElementById('profileAvatar');
-    const profileName = document.getElementById('profileName');
-    const profileUid = document.getElementById('profileUid');
-    const profileSession = document.getElementById('profileSession');
-    const profileBio = document.getElementById('profileBio');
-    const profileTheme = document.getElementById('statTheme');
-    const profileCreated = document.getElementById('statCreated');
-    const statMaterials = document.getElementById('statMaterials');
-    const statViews = document.getElementById('statViews');
+      setAccountMenuLabel(profileAccountDoc.display_name, profileAccountDoc.id);
+      applyTheme(theme, true);
+      fillFormFromProfile();
+      toastMsg('Profil zapisany.');
+
+      const backUrl = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
+      setTimeout(() => {
+        window.location.href = backUrl;
+      }, 800);
+    } catch (e) {
+      console.error(e);
+      toastMsg('Nie udało się zapisać profilu.');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-symbols-rounded">save</span> Zapisz zmiany';
+      }
+    }
+  }
+
+  function showAuthLockMessage() {
     const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('saveBtn');
+    const displayNameInput = document.getElementById('displayName');
+    const bioInput = document.getElementById('bio');
+    const avatarUrlInput = document.getElementById('avatarUrl');
+    const themeSelect = document.getElementById('themeSelect');
+
+    if (statusMsg) statusMsg.textContent = 'Nie masz uprawnień do edycji tego profilu. Zaloguj się na właściciela konta.';
+    if (saveBtn) saveBtn.disabled = true;
+    [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
+      if (el) el.disabled = true;
+    });
+  }
+
+  async function initPage() {
     const saveBtn = document.getElementById('saveBtn');
     const backBtn = document.getElementById('backBtn');
     const displayNameInput = document.getElementById('displayName');
     const bioInput = document.getElementById('bio');
     const avatarUrlInput = document.getElementById('avatarUrl');
     const themeSelect = document.getElementById('themeSelect');
-    const countdownValue = document.getElementById('countdown-value');
-    const homeLink = document.getElementById('home-link');
-    const logoImg = document.getElementById('logo-img');
-    const drawerLogo = document.getElementById('drawer-logo');
-    const hero = document.getElementById('hero');
+    const statusMsg = document.getElementById('statusMsg');
 
-    const THEME_KEY = 'nh_theme';
-    const SESSION_KEY = 'nh_session_id';
+    if (logoImg) logoImg.src = defaultLogo;
+    if (drawerLogo) drawerLogo.src = defaultLogo;
+    if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
 
-    const defaultLogo = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png';
-    const defaultHero = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Edytuj+profil';
-    const fallbackAvatar = 'https://nyanhappi12.github.io/site_files/Copilot_20251213_004258.png?text=Avatar';
+    applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
+    if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
+    if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
+    if (themeSelect) themeSelect.onchange = () => applyTheme(themeSelect.value);
 
-    let sessionAccountDoc = null;
-    let profileAccountDoc = null;
-    let allowedToEdit = false;
+    await bootstrapSessionFromUrl();
+    await resolveProfileDoc();
 
-    function toastMsg(msg) {
-      if (!toast) return;
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2200);
+    if (!profileAccountDoc && accountDoc) profileAccountDoc = accountDoc;
+
+    allowedToEdit = !!(accountDoc && profileAccountDoc && accountDoc.id === profileAccountDoc.id);
+
+    if (profileAccountDoc) {
+      if (profileTitle) profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      if (profileSubtitle) profileSubtitle.textContent = `Sesja aktywna: ${safeText(accountDoc?.display_name || accountDoc?.id || 'Konto', 'Konto')}`;
+      if (profileAvatar) profileAvatar.src = (await loadProfilePicture(profileAccountDoc.id)) || profileAccountDoc.avatar || fallbackAvatar;
+      document.title = `NyanHappi12 — Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
+      fillFormFromProfile();
+      await loadPublishedMaterials();
+      updateEditButton();
+    } else {
+      if (profileTitle) profileTitle.textContent = 'Edytuj profil';
+      if (profileSubtitle) profileSubtitle.textContent = 'Nie wykryto aktywnego profilu.';
+      if (profileName) profileName.textContent = 'Gość';
+      if (profileUid) profileUid.textContent = 'UID: —';
+      if (profileAvatar) profileAvatar.src = fallbackAvatar;
+      if (statusMsg) statusMsg.textContent = 'Brak aktywnej sesji. Najpierw zaloguj się.';
+      showAuthLockMessage();
     }
 
-    function safeText(v, fallback = '—') {
-      const s = String(v ?? '').trim();
-      return s ? s : fallback;
+    if (statusMsg) {
+      if (allowedToEdit) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
+      else if (accountDoc) statusMsg.textContent = 'To nie jest Twój profil albo nie ma aktywnej sesji.';
     }
 
-    function getUrlIds() {
-      const params = new URLSearchParams(window.location.search);
-      const sessionId =
-        params.get('sessionid') ||
-        params.get('session_id') ||
-        (() => { try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; } })();
-
-      const profileId =
-        params.get('profileid') ||
-        params.get('profile_id') ||
-        sessionId;
-
-      return { sessionId, profileId };
-    }
-
-    function setUrlIds(sessionId, profileId) {
-      const u = new URL(window.location.href);
-      if (sessionId) u.searchParams.set('sessionid', sessionId); else u.searchParams.delete('sessionid');
-      if (profileId) u.searchParams.set('profileid', profileId); else u.searchParams.delete('profileid');
-      window.history.replaceState({}, '', u.toString());
-      try {
-        if (sessionId) localStorage.setItem(SESSION_KEY, sessionId);
-        else localStorage.removeItem(SESSION_KEY);
-      } catch (e) {}
-    }
-
-    function setAccountMenuLabel(name, uid) {
-      if (!accountLink) return;
-      if (name && uid) {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${name}`;
-        accountLink.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || uid)}&profileid=${encodeURIComponent(uid)}`;
-      } else {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
-        accountLink.href = '/login/';
-      }
-    }
-
-    function applyTheme(theme, persistToFirestore = true) {
-      const t = theme === 'light' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-      document.body.setAttribute('data-theme', t);
-      if (footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
-      try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
-      if (persistToFirestore && sessionAccountDoc && sessionAccountDoc.id) {
-        setDoc(doc(db, 'accounts', sessionAccountDoc.id), { theme: t }, { merge: true }).catch(() => {});
-      }
-      if (themeSelect) themeSelect.value = t;
-    }
-
-    const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
-const STEP = 72 * 60 * 60 * 1000; // 72h
-
-function getNextEpisodeTime() {
-  const now = Date.now();
-  const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
-  return new Date(next);
-}
-
-function pad(n) { return String(n).padStart(2, '0'); }
-
-function updateCountdown() {
-  const el = document.getElementById('countdown-value');
-  if (!el) return;
-
-  const now = new Date();
-  const target = getNextEpisodeTime();
-
-  const diff = Math.max(0, target - now);
-  const s = Math.floor(diff / 1000) % 60;
-  const m = Math.floor(diff / 60000) % 60;
-  const h = Math.floor(diff / 3600000) % 24;
-  const d = Math.floor(diff / (24 * 3600000));
-
-  const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
-
-  el.style.transform = 'translateY(-6px) scale(0.99)';
-  el.style.opacity = '0.85';
-  setTimeout(() => {
-    el.textContent = out;
-    el.style.transform = 'translateY(0) scale(1)';
-    el.style.opacity = '1';
-  }, 120);
-}
-
-updateCountdown();
-setInterval(updateCountdown, 1000);
-
-    function removeGlobalDrawerListeners() {
-      document.removeEventListener('pointerdown', outsideDrawerHandler);
-      document.removeEventListener('touchstart', outsideDrawerHandler);
-      document.removeEventListener('keydown', escCloseHandler);
-    }
-
-    function closeDrawer() {
-      if (!drawerWrap) return;
-      drawerWrap.classList.remove('open');
-      const drawerEl = drawerWrap.querySelector('.drawer');
-      let cleaned = false;
-      function cleanUpAfterClose() {
-        if (cleaned) return;
-        cleaned = true;
-        drawerWrap.setAttribute('aria-hidden', 'true');
-        removeGlobalDrawerListeners();
-        if (drawerEl) drawerEl.removeEventListener('transitionend', onTransitionEnd);
-      }
-      function onTransitionEnd(e) { if (e.target === drawerEl) cleanUpAfterClose(); }
-      if (drawerEl) drawerEl.addEventListener('transitionend', onTransitionEnd);
-      setTimeout(cleanUpAfterClose, 700);
-    }
-
-    function openDrawer() {
-      if (!drawerWrap) return;
-      drawerWrap.classList.add('open');
-      drawerWrap.setAttribute('aria-hidden', 'false');
-      setTimeout(() => {
-        document.addEventListener('pointerdown', outsideDrawerHandler);
-        document.addEventListener('touchstart', outsideDrawerHandler, { passive: true });
-        document.addEventListener('keydown', escCloseHandler);
-      }, 0);
-    }
-
-    function escCloseHandler(e) {
-      if (e.key === 'Escape' || e.key === 'Esc') closeDrawer();
-    }
-
-    function outsideDrawerHandler(e) {
-      if (!drawerWrap || !drawerWrap.classList.contains('open')) return;
-      const drawerEl = drawerWrap.querySelector('.drawer');
-      const path = e.composedPath ? e.composedPath() : (e.path || []);
-      const target = path && path.length ? path[0] : e.target;
-      if (drawerEl && drawerEl.contains(target)) return;
-      if (menuOpen && menuOpen.contains(target)) return;
-      closeDrawer();
-    }
-
-    async function loadAccountById(uid) {
-      if (!uid) return null;
-      const ref = doc(db, 'accounts', uid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return null;
-      return { id: snap.id, ...snap.data() };
-    }
-
-    async function bootstrapSessionFromUrl() {
-      const { sessionId } = getUrlIds();
-      if (!sessionId) return null;
-      try {
-        const data = await loadAccountById(sessionId);
-        if (data) {
-          sessionAccountDoc = data;
-          setAccountMenuLabel(sessionAccountDoc.display_name || 'Konto', sessionAccountDoc.id);
-          return sessionAccountDoc;
-        }
-      } catch (e) {
-        console.error('bootstrapSessionFromUrl failed', e);
-      }
-      return null;
-    }
-
-    async function ensureAccountDocForUser(user) {
-      const ref = doc(db, 'accounts', user.uid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
-        const created = {
-          display_name: user.displayName || nickFromEmail || 'Użytkownik',
-          email: user.email || null,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(ref, created);
-        return { id: user.uid, ...created };
-      }
-      return { id: snap.id, ...snap.data() };
-    }
-
-    function buildThumb(data, id) {
-      return (
-        data.imageURL ||
-        data.imageUrl ||
-        data.image_url ||
-        data.thumb ||
-        data.thumbnail ||
-        data.downloadURL ||
-        data.download_url ||
-        `/site_files/${encodeURIComponent(id)}`
-      );
-    }
-
-    function normalizeOwner(data) {
-      return safeText(
-        data.owner_uid ||
-        data.OwnerUID ||
-        data.ownerUid ||
-        data.Owner ||
-        data.Username ||
-        data.display_name ||
-        data.owner,
-        ''
-      );
-    }
-
-    async function loadProfilePicture(uid) {
-      try {
-        const ref = doc(db, 'profile_pictures', uid);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) return null;
-        const data = snap.data() || {};
-        return data.url || data.imageURL || data.image_url || data.downloadURL || data.src || null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    async function resolveProfileDoc() {
-      const { profileId } = getUrlIds();
-      const targetId = profileId || sessionAccountDoc?.id || null;
-      if (!targetId) return null;
-      try {
-        const data = await loadAccountById(targetId);
-        if (data) {
-          profileAccountDoc = data;
-          return profileAccountDoc;
-        }
-      } catch (e) {
-        console.error('resolveProfileDoc failed', e);
-      }
-      return null;
-    }
-
-    function updateEditButton() {
-      const editBtn = document.getElementById('editProfileBtn');
-      const sessionId = sessionAccountDoc?.id;
-      const profileId = profileAccountDoc?.id;
-      if (!editBtn) return;
-      if (sessionId && profileId && sessionId === profileId) {
-        editBtn.style.display = 'inline-flex';
-        editBtn.onclick = () => {
-          window.location.href = `/konto/edytuj.html?account=${encodeURIComponent(sessionId)}&sessionid=${encodeURIComponent(sessionId)}`;
-        };
-      } else {
-        editBtn.style.display = 'none';
-      }
-    }
-
-    async function loadPublishedMaterials() {
-      const materialsGrid = document.getElementById('materialsGrid');
-      if (!materialsGrid) return;
-      materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Ładowanie materiałów...</div>';
-      if (!profileAccountDoc || !profileAccountDoc.id) {
-        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak aktywnego profilu do wyświetlenia.</div>';
-        return;
-      }
-
-      try {
-        const [imageSnaps, postSnaps] = await Promise.allSettled([
-          getDocs(collection(db, 'images_metadata')),
-          getDocs(collection(db, 'user_posts'))
-        ]);
-
-        const list = [];
-        let totalViews = 0;
-
-        if (imageSnaps.status === 'fulfilled') {
-          imageSnaps.value.forEach(docSnap => {
-            const data = docSnap.data() || {};
-            const title = safeText(data.name, docSnap.id);
-            const ownerValue = normalizeOwner(data);
-            const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
-            const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
-            const isMine = ownerUid === profileAccountDoc.id || ownerValue === safeText(profileAccountDoc.display_name, '') || ownerValue === profileAccountDoc.id;
-            if (!isMine) return;
-            totalViews += views;
-            list.push({
-              kind: 'image',
-              id: docSnap.id,
-              title,
-              owner: ownerValue || profileAccountDoc.display_name || '—',
-              views,
-              thumb: buildThumb(data, docSnap.id)
-            });
-          });
-        }
-
-        if (postSnaps.status === 'fulfilled') {
-          postSnaps.value.forEach(docSnap => {
-            const data = docSnap.data() || {};
-            const title = safeText(data.title || data.name, docSnap.id);
-            const ownerValue = normalizeOwner(data);
-            const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.ownerUid, '');
-            const views = Number.parseInt(String(data.views ?? '0').replace(/\D/g, ''), 10) || 0;
-            const isMine = ownerUid === profileAccountDoc.id || ownerValue === safeText(profileAccountDoc.display_name, '') || ownerValue === profileAccountDoc.id;
-            if (!isMine) return;
-            totalViews += views;
-            list.push({
-              kind: 'post',
-              id: docSnap.id,
-              title,
-              owner: ownerValue || profileAccountDoc.display_name || '—',
-              views,
-              thumb: data.imageURL || data.imageUrl || data.coverURL || 'https://via.placeholder.com/640x360?text=Post'
-            });
-          });
-        }
-
-        document.getElementById('statMaterials').textContent = String(list.length);
-        document.getElementById('statViews').textContent = String(totalViews);
-        profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
-        profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
-        profileSubtitle.textContent = `Edytujesz profil: ${safeText(profileAccountDoc.display_name, 'Konto')}`;
-        profileBio.textContent = profileAccountDoc.bio || 'Profil nie ma jeszcze opisu.';
-
-        if (!list.length) {
-          materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Brak opublikowanych materiałów przypisanych do tego konta.</div>';
-          return;
-        }
-
-        materialsGrid.innerHTML = '';
-        list.slice(0, 12).forEach(item => {
-          const a = document.createElement('a');
-          a.className = 'material-card';
-          if (item.kind === 'image') {
-            a.href = `/galeria/obrazek/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&name=${encodeURIComponent(item.id)}`;
-          } else {
-            a.href = `/posty/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}&postid=${encodeURIComponent(item.id)}`;
-          }
-          a.innerHTML = `
-            <img src="${item.thumb}" alt="${String(item.title).replace(/"/g, '&quot;')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/640x360?text=No+image'">
-            <div class="meta">
-              <div class="title">${item.title}</div>
-              <div class="sub">${item.owner || profileAccountDoc.display_name || '—'} · ${item.views} views</div>
-            </div>
-          `;
-          materialsGrid.appendChild(a);
-        });
-      } catch (e) {
-        console.error('loadPublishedMaterials failed', e);
-        materialsGrid.innerHTML = '<div class="panel" style="grid-column:1/-1">Nie udało się wczytać materiałów.</div>';
-      }
-    }
-
-    function fillFormFromProfile() {
-      if (!profileAccountDoc) return;
-      if (displayNameInput) displayNameInput.value = profileAccountDoc.display_name || '';
-      if (bioInput) bioInput.value = profileAccountDoc.bio || '';
-      if (avatarUrlInput) avatarUrlInput.value = profileAccountDoc.avatar || '';
-      if (themeSelect) themeSelect.value = profileAccountDoc.theme || localStorage.getItem(THEME_KEY) || 'dark';
-      if (profileAvatar) profileAvatar.src = profileAccountDoc.avatar || fallbackAvatar;
-      if (profileName) profileName.textContent = profileAccountDoc.display_name || 'Konto';
-      if (profileUid) profileUid.textContent = `UID: ${profileAccountDoc.id || '—'}`;
-      if (profileSession) profileSession.textContent = `Sesja: ${sessionAccountDoc?.id || '—'}`;
-      if (profileCreated) profileCreated.textContent = profileAccountDoc.createdAt ? new Date(profileAccountDoc.createdAt).toLocaleString() : '—';
-      if (profileTheme) profileTheme.textContent = safeText(profileAccountDoc.theme || localStorage.getItem(THEME_KEY), 'ciemny');
-    }
-
-    async function saveProfile() {
-      if (!allowedToEdit || !profileAccountDoc?.id) {
-        toastMsg('Nie masz uprawnień do edycji tego profilu.');
-        return;
-      }
-
-      const display_name = String(displayNameInput?.value || '').trim();
-      const bio = String(bioInput?.value || '').trim();
-      const avatar = String(avatarUrlInput?.value || '').trim();
-      const theme = themeSelect?.value === 'light' ? 'light' : 'dark';
-
-      const payload = {
-        display_name: display_name || profileAccountDoc.display_name || 'Użytkownik',
-        bio,
-        avatar: avatar || null,
-        theme,
-        updatedAt: new Date().toISOString()
-      };
-
-      try {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Zapisywanie...';
-
-        await setDoc(doc(db, 'accounts', profileAccountDoc.id), payload, { merge: true });
-
-        if (avatar) {
-          await setDoc(doc(db, 'profile_pictures', profileAccountDoc.id), {
-            url: avatar,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        }
-
-        profileAccountDoc = { ...profileAccountDoc, ...payload };
-        sessionAccountDoc = { ...sessionAccountDoc, ...payload };
-        setAccountMenuLabel(profileAccountDoc.display_name, profileAccountDoc.id);
-        applyTheme(theme, true);
-        fillFormFromProfile();
-        toastMsg('Profil zapisany.');
-
-        const backUrl = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
-        setTimeout(() => {
-          window.location.href = backUrl;
-        }, 800);
-      } catch (e) {
-        console.error(e);
-        toastMsg('Nie udało się zapisać profilu.');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<span class="material-symbols-rounded">save</span> Zapisz zmiany';
-      }
-    }
-
-    function showAuthLockMessage() {
-      if (statusMsg) {
-        statusMsg.textContent = 'Nie masz uprawnień do edycji tego profilu. Zaloguj się na właściciela konta.';
-      }
-      if (saveBtn) saveBtn.disabled = true;
-      [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
-        if (el) el.disabled = true;
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await saveProfile();
       });
     }
 
-    async function initPage() {
-      if (logoImg) logoImg.src = defaultLogo;
-      if (drawerLogo) drawerLogo.src = defaultLogo;
-      if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
-
-      applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
-      if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
-      if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
-      if (themeSelect) themeSelect.onchange = () => applyTheme(themeSelect.value);
-
-     
-
-      await bootstrapSessionFromUrl();
-      await resolveProfileDoc();
-
-      if (sessionAccountDoc && profileAccountDoc && sessionAccountDoc.id === profileAccountDoc.id) {
-        allowedToEdit = true;
-        if (statusMsg) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
-      } else {
-        allowedToEdit = false;
-        if (statusMsg) statusMsg.textContent = 'To nie jest Twój profil albo nie ma aktywnej sesji.';
-      }
-
-      if (!profileAccountDoc && sessionAccountDoc) {
-        profileAccountDoc = sessionAccountDoc;
-      }
-
-      if (profileAccountDoc) {
-        profileTitle.textContent = `Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
-        profileSubtitle.textContent = `Sesja aktywna: ${safeText(sessionAccountDoc?.display_name || sessionAccountDoc?.id || 'Konto', 'Konto')}`;
-        if (profileAvatar) profileAvatar.src = (await loadProfilePicture(profileAccountDoc.id)) || profileAccountDoc.avatar || fallbackAvatar;
-        document.title = `NyanHappi12 — Edytuj profil ${safeText(profileAccountDoc.display_name, 'Konto')}`;
-        fillFormFromProfile();
-        await loadPublishedMaterials();
-        updateEditButton?.();
-      } else {
-        profileTitle.textContent = 'Edytuj profil';
-        profileSubtitle.textContent = 'Nie wykryto aktywnego profilu.';
-        profileName.textContent = 'Gość';
-        profileUid.textContent = 'UID: —';
-        if (profileAvatar) profileAvatar.src = fallbackAvatar;
-        if (statusMsg) statusMsg.textContent = 'Brak aktywnej sesji. Najpierw zaloguj się.';
-        showAuthLockMessage();
-      }
+    if (backBtn) {
+      backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!profileAccountDoc?.id) {
+          window.location.href = '/konto/';
+          return;
+        }
+        window.location.href = `/konto/?sessionid=${encodeURIComponent(accountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
+      });
     }
 
-    menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
-    drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
-    drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  }
 
-    onAuthStateChanged(auth, async (user) => {
+  menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
+  drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+  drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+
+  onAuthStateChanged(auth, async (user) => {
+    try {
       if (user) {
-        try {
-          sessionAccountDoc = await ensureAccountDocForUser(user);
-          setAccountMenuLabel(sessionAccountDoc.display_name || 'Konto', sessionAccountDoc.id);
-          const { profileId } = getUrlIds();
-          const finalProfileId = profileId || sessionAccountDoc.id;
-          setUrlIds(sessionAccountDoc.id, finalProfileId);
-          if (sessionAccountDoc && sessionAccountDoc.theme) applyTheme(sessionAccountDoc.theme, false);
-        } catch (e) {
-          console.error(e);
-        }
+        accountDoc = await ensureAccountDocForUser(user);
+        setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
+
+        const { profileId } = getUrlIds();
+        const finalProfileId = profileId || accountDoc.id;
+        setUrlIds(accountDoc.id, finalProfileId);
+
+        if (accountDoc.theme) applyTheme(accountDoc.theme, false);
       } else {
         const session = await bootstrapSessionFromUrl();
         if (session) {
@@ -875,14 +966,22 @@ setInterval(updateCountdown, 1000);
           const { profileId } = getUrlIds();
           if (!profileId) setUrlIds(session.id, session.id);
         } else {
-          sessionAccountDoc = null;
+          accountDoc = null;
           setAccountMenuLabel(null, null);
         }
       }
 
       await resolveProfileDoc();
-      allowedToEdit = !!(sessionAccountDoc && profileAccountDoc && sessionAccountDoc.id === profileAccountDoc.id);
+      allowedToEdit = !!(accountDoc && profileAccountDoc && accountDoc.id === profileAccountDoc.id);
+
       if (allowedToEdit) {
+        const statusMsg = document.getElementById('statusMsg');
+        const saveBtn = document.getElementById('saveBtn');
+        const displayNameInput = document.getElementById('displayName');
+        const bioInput = document.getElementById('bio');
+        const avatarUrlInput = document.getElementById('avatarUrl');
+        const themeSelect = document.getElementById('themeSelect');
+
         if (statusMsg) statusMsg.textContent = 'Masz dostęp do edycji tego profilu.';
         if (saveBtn) saveBtn.disabled = false;
         [displayNameInput, bioInput, avatarUrlInput, themeSelect].forEach(el => {
@@ -891,62 +990,57 @@ setInterval(updateCountdown, 1000);
       } else {
         showAuthLockMessage();
       }
+
       fillFormFromProfile();
-      updateEditButton?.();
-    });
+      updateEditButton();
+    } catch (e) {
+      console.error(e);
+    }
+  });
 
-    accountLink?.addEventListener('click', async (e) => {
-      if (sessionAccountDoc && sessionAccountDoc.id) {
-        const { profileId } = getUrlIds();
-        const finalProfileId = profileId || profileAccountDoc?.id || sessionAccountDoc.id;
-        window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(finalProfileId)}`;
-        return;
-      }
+  accountLink?.addEventListener('click', async (e) => {
+    if (accountDoc && accountDoc.id) {
       e.preventDefault();
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (err) {
-        alert('Błąd logowania: ' + (err && err.message || err));
-      }
-    });
+      const { profileId } = getUrlIds();
+      const finalProfileId = profileId || profileAccountDoc?.id || accountDoc.id;
+      window.location.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(finalProfileId)}`;
+      return;
+    }
 
-    accountLink?.addEventListener('contextmenu', async (ev) => {
-      ev.preventDefault();
-      if (confirm('Wylogować?')) {
-        await signOut(auth);
-        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-        toastMsg('Wylogowano');
-      }
-    });
+    e.preventDefault();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      alert('Błąd logowania: ' + ((err && err.message) || err));
+    }
+  });
 
-    saveBtn?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await saveProfile();
-    });
+  accountLink?.addEventListener('contextmenu', async (ev) => {
+    ev.preventDefault();
+    if (confirm('Wylogować?')) {
+      await signOut(auth);
+      try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+      accountDoc = null;
+      profileAccountDoc = null;
+      setAccountMenuLabel(null, null);
+      toastMsg('Wylogowano');
+    }
+  });
 
-    backBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (!profileAccountDoc?.id) {
-        window.location.href = '/konto/';
-        return;
-      }
-      window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc?.id || profileAccountDoc.id)}&profileid=${encodeURIComponent(profileAccountDoc.id)}`;
-    });
+  document.getElementById('home-link')?.addEventListener('dblclick', () => {
+    const l = prompt('Podaj URL logo (pusty = placeholder):', logoImg?.src || defaultLogo);
+    if (l !== null) {
+      if (logoImg) logoImg.src = l || defaultLogo;
+      if (drawerLogo) drawerLogo.src = l || defaultLogo;
+    }
 
-    document.getElementById('home-link')?.addEventListener('dblclick', () => {
-      const l = prompt('Podaj URL logo (pusty = placeholder):', logoImg?.src || defaultLogo);
-      if (l !== null) {
-        if (logoImg) logoImg.src = l || defaultLogo;
-        if (drawerLogo) drawerLogo.src = l || defaultLogo;
-      }
+    const currentHero = (hero?.style.backgroundImage || '').replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+    const h = prompt('Podaj URL tła hero (pusty = placeholder):', currentHero);
+    if (h !== null && hero) {
+      hero.style.backgroundImage = `url('${h || defaultHero}')`;
+    }
+  });
 
-      const currentHero = (hero?.style.backgroundImage || '').replace(/^url['"]?/, '').replace(/['"]?$/, '');
-      const h = prompt('Podaj URL tła hero (pusty = placeholder):', currentHero);
-      if (h !== null && hero) {
-        hero.style.backgroundImage = `url('${h || defaultHero}')`;
-      }
-    });
-
-    initPage();
-  </script></body>
+  initPage();
+</script></body>
 </html>
