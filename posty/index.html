@@ -338,21 +338,32 @@
     })();
   }
 
-  function setSessionId(id) {
-    if (!id) return;
+  function setSessionIds(sessionId, profileId) {
     const u = new URL(window.location.href);
-    u.searchParams.set('sessionid', id);
-    u.searchParams.set('session_id', id);
+
+    if (sessionId) {
+      u.searchParams.set('sessionid', sessionId);
+      u.searchParams.set('session_id', sessionId);
+      try { localStorage.setItem(SESSION_KEY, sessionId); } catch (e) {}
+    } else {
+      u.searchParams.delete('sessionid');
+      u.searchParams.delete('session_id');
+      try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    }
+
+    if (profileId) {
+      u.searchParams.set('profileid', profileId);
+      u.searchParams.set('profile_id', profileId);
+    } else {
+      u.searchParams.delete('profileid');
+      u.searchParams.delete('profile_id');
+    }
+
     window.history.replaceState({}, '', u.toString());
-    try { localStorage.setItem(SESSION_KEY, id); } catch (e) {}
   }
 
-  function clearSessionId() {
-    const u = new URL(window.location.href);
-    u.searchParams.delete('sessionid');
-    u.searchParams.delete('session_id');
-    window.history.replaceState({}, '', u.toString());
-    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  function clearSessionIds() {
+    setSessionIds(null, null);
   }
 
   function applyTheme(theme, persistToFirestore = true) {
@@ -361,48 +372,51 @@
     document.body.setAttribute('data-theme', t);
     if (footerTheme) footerTheme.textContent = t === 'light' ? 'jasny' : 'ciemny';
     try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+
     if (persistToFirestore && sessionAccountDoc && sessionAccountDoc.id) {
       setDoc(doc(db, 'accounts', sessionAccountDoc.id), { theme: t }, { merge: true }).catch(() => {});
     }
   }
 
   const EPISODE_ANCHOR = new Date('2026-06-01T21:00:00+02:00').getTime();
-const STEP = 72 * 60 * 60 * 1000; // 72h
+  const STEP = 72 * 60 * 60 * 1000; // 72h
 
-function getNextEpisodeTime() {
-  const now = Date.now();
-  const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
-  return new Date(next);
-}
+  function getNextEpisodeTime() {
+    const now = Date.now();
+    const next = EPISODE_ANCHOR + Math.ceil((now - EPISODE_ANCHOR) / STEP) * STEP;
+    return new Date(next);
+  }
 
-function pad(n) { return String(n).padStart(2, '0'); }
+  function pad(n) {
+    return String(n).padStart(2, '0');
+  }
 
-function updateCountdown() {
-  const el = document.getElementById('countdown-value');
-  if (!el) return;
+  function updateCountdown() {
+    const el = document.getElementById('countdown-value');
+    if (!el) return;
 
-  const now = new Date();
-  const target = getNextEpisodeTime();
+    const now = new Date();
+    const target = getNextEpisodeTime();
+    const diff = Math.max(0, target - now);
 
-  const diff = Math.max(0, target - now);
-  const s = Math.floor(diff / 1000) % 60;
-  const m = Math.floor(diff / 60000) % 60;
-  const h = Math.floor(diff / 3600000) % 24;
-  const d = Math.floor(diff / (24 * 3600000));
+    const s = Math.floor(diff / 1000) % 60;
+    const m = Math.floor(diff / 60000) % 60;
+    const h = Math.floor(diff / 3600000) % 24;
+    const d = Math.floor(diff / (24 * 3600000));
 
-  const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
+    const out = (d ? (d + 'd ') : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
 
-  el.style.transform = 'translateY(-6px) scale(0.99)';
-  el.style.opacity = '0.85';
-  setTimeout(() => {
-    el.textContent = out;
-    el.style.transform = 'translateY(0) scale(1)';
-    el.style.opacity = '1';
-  }, 120);
-}
+    el.style.transform = 'translateY(-6px) scale(0.99)';
+    el.style.opacity = '0.85';
+    setTimeout(() => {
+      el.textContent = out;
+      el.style.transform = 'translateY(0) scale(1)';
+      el.style.opacity = '1';
+    }, 120);
+  }
 
-updateCountdown();
-setInterval(updateCountdown, 1000);
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
 
   function removeGlobalDrawerListeners() {
     document.removeEventListener('pointerdown', outsideDrawerHandler);
@@ -415,6 +429,7 @@ setInterval(updateCountdown, 1000);
     drawerWrap.classList.remove('open');
     const drawerEl = drawerWrap.querySelector('.drawer');
     let cleaned = false;
+
     function cleanUpAfterClose() {
       if (cleaned) return;
       cleaned = true;
@@ -422,7 +437,11 @@ setInterval(updateCountdown, 1000);
       removeGlobalDrawerListeners();
       if (drawerEl) drawerEl.removeEventListener('transitionend', onTransitionEnd);
     }
-    function onTransitionEnd(e) { if (e.target === drawerEl) cleanUpAfterClose(); }
+
+    function onTransitionEnd(e) {
+      if (e.target === drawerEl) cleanUpAfterClose();
+    }
+
     if (drawerEl) drawerEl.addEventListener('transitionend', onTransitionEnd);
     setTimeout(cleanUpAfterClose, 700);
   }
@@ -452,6 +471,10 @@ setInterval(updateCountdown, 1000);
     closeDrawer();
   }
 
+  menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
+  drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+  drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
+
   async function loadAccountById(uid) {
     if (!uid) return null;
     const ref = doc(db, 'accounts', uid);
@@ -461,83 +484,8 @@ setInterval(updateCountdown, 1000);
   }
 
   async function ensureAccountDocForUser(user) {
-      const ref = doc(db, 'accounts', user.uid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
-        const created = {
-          display_name: user.displayName || nickFromEmail || 'Użytkownik',
-          email: user.email || null,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(ref, created);
-        return { id: user.uid, ...created };
-      }
-      return { id: snap.id, ...snap.data() };
-    }
-
-    function updateAccountLink() {
-      if (!accountLink) return;
-      if (accountDoc?.id) {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`;
-        accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-      } else {
-        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
-        accountLink.href = '/login/';
-      }
-    }
-
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        accountDoc = await ensureAccountDocForUser(user);
-        updateAccountLink();
-        try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
-        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
-      } else {
-        accountDoc = null;
-        updateAccountLink();
-        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
-      }
-    });
-
-    accountLink?.addEventListener('click', async (e) => {
-  if(accountDoc?.id){
-    e.preventDefault();
-
-    window.location.href =
-      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
-
-    return;
-  }
-
-  try{
-    e.preventDefault();
-    await signInWithPopup(auth, provider);
-  }catch(err){
-    console.error(err);
-
-    // fallback
-    window.location.href = '/login/';
-  }
-});
-    accountLink?.addEventListener('contextmenu', async (ev) => {
-      ev.preventDefault();
-      if (confirm('Wylogować?')) {
-        await signOut(auth);
-        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-        alert('Wylogowano');
-      }
-    });
-
-  // ----------------------- CLOUDINARY HELPER -----------------------
-  async function uploadToCloudinary(file) {
-    const url = `https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY.cloudName}/upload`;
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('upload_preset', CONFIG.CLOUDINARY.unsignedPreset);
-    const resp = await fetch(url, { method: 'POST', body: fd });
-    if (!resp.ok) throw new Error('Upload failed');
-    return resp.json();
+    const ref = doc(db, 'accounts', user.uid);
+    const snap = await getDoc(ref);
 
     if (!snap.exists()) {
       const nickFromEmail = user.email ? user.email.split('@')[0] : null;
@@ -557,12 +505,50 @@ setInterval(updateCountdown, 1000);
     return sessionAccountDoc?.display_name || sessionAccountDoc?.email?.split('@')[0] || 'Konto';
   }
 
+  function updateAccountLink() {
+    if (!accountLink) return;
+    if (sessionAccountDoc?.id) {
+      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${safeText(accountLabel(), 'Konto')}`;
+      accountLink.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(sessionAccountDoc.id)}`;
+    } else {
+      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+      accountLink.href = '/login/';
+    }
+  }
+
+  async function initSession() {
+    const sid = getUrlSessionId();
+    if (sid) {
+      sessionAccountDoc = await loadAccountById(sid);
+    }
+
+    if (!sessionAccountDoc) {
+      try {
+        const saved = localStorage.getItem(SESSION_KEY);
+        if (saved) sessionAccountDoc = await loadAccountById(saved);
+      } catch (e) {}
+    }
+
+    updateAccountLink();
+    updateCreateButton();
+    updateAccountHint();
+  }
+
   function normalizePost(docSnap) {
     const data = docSnap.data() || {};
     const title = safeText(data.title || data.name || 'Bez tytułu', docSnap.id);
     const body = safeText(data.content || data.body || data.text || '', '');
     const ownerUid = safeText(data.owner_uid || data.OwnerUID || data.author_uid || data.user_uid || data.uid, '');
-    const ownerName = safeText(data.display_name || data.owner_name || data.Owner || data.Username || data.owner || data.author_name || '—', '—');
+    const ownerName = safeText(
+      data.display_name ||
+      data.owner_name ||
+      data.Owner ||
+      data.Username ||
+      data.owner ||
+      data.author_name ||
+      '—',
+      '—'
+    );
     const thumb = data.imageURL || data.imageUrl || data.image_url || data.coverURL || data.cover_url || data.thumb || fallbackThumb;
     const likes = Number.parseInt(String(data.likes ?? 0).replace(/\D/g, ''), 10) || 0;
     const commentsCount = Number.parseInt(String(data.comments_count ?? data.commentsCount ?? 0).replace(/\D/g, ''), 10) || 0;
@@ -639,40 +625,36 @@ setInterval(updateCountdown, 1000);
     });
 
     postsGrid.querySelectorAll('.likeBtn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const postId = btn.getAttribute('data-post');
-    if (!sessionAccountDoc?.id) return toastMsg('Zaloguj się, aby lajkować posty.');
+      btn.addEventListener('click', async () => {
+        const postId = btn.getAttribute('data-post');
+        if (!sessionAccountDoc?.id) return toastMsg('Zaloguj się, aby lajkować posty.');
 
-    try {
-      const ref = doc(db, 'user_posts', postId);
-      const snap = await getDoc(ref);
+        try {
+          const ref = doc(db, 'user_posts', postId);
+          const snap = await getDoc(ref);
+          if (!snap.exists()) return;
 
-      if (!snap.exists()) return;
+          const data = snap.data();
+          const likedBy = Array.isArray(data.liked_by) ? data.liked_by : [];
 
-      const data = snap.data();
-      const likedBy = Array.isArray(data.liked_by) ? data.liked_by : [];
+          if (likedBy.includes(sessionAccountDoc.id)) {
+            toastMsg('Już polubiłeś ten post.');
+            return;
+          }
 
-      // 🔒 sprawdzamy czy już lajknął
-      if (likedBy.includes(sessionAccountDoc.id)) {
-        toastMsg('Już polubiłeś ten post.');
-        return;
-      }
+          await updateDoc(ref, {
+            likes: increment(1),
+            liked_by: [...likedBy, sessionAccountDoc.id]
+          });
 
-      // ✅ dodajemy usera do listy + inkrement
-      await updateDoc(ref, {
-        likes: increment(1),
-        liked_by: [...likedBy, sessionAccountDoc.id]
+          toastMsg('Polubiono post.');
+          await loadPosts();
+        } catch (e) {
+          console.error(e);
+          toastMsg('Nie udało się polubić posta.');
+        }
       });
-
-      toastMsg('Polubiono post.');
-      await loadPosts();
-
-    } catch (e) {
-      console.error(e);
-      toastMsg('Nie udało się polubić posta.');
-    }
-  });
-});
+    });
 
     postsGrid.querySelectorAll('.commentBtn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -790,73 +772,61 @@ setInterval(updateCountdown, 1000);
     }
   }
 
-  async function initSession() {
-    const sid = getUrlSessionId();
-    if (sid) {
-      sessionAccountDoc = await loadAccountById(sid);
-    }
-    if (!sessionAccountDoc) {
-      try {
-        const saved = localStorage.getItem(SESSION_KEY);
-        if (saved) sessionAccountDoc = await loadAccountById(saved);
-      } catch (e) {}
-    }
-    updateAccountLink();
-    updateCreateButton();
-    updateAccountHint();
-  }
-
   function setHeroFallback() {
     if (logoImg) logoImg.src = defaultLogo;
     if (drawerLogo) drawerLogo.src = defaultLogo;
     if (hero && !hero.style.backgroundImage) hero.style.backgroundImage = `url('${defaultHero}')`;
   }
 
-  menuOpen?.addEventListener('click', (ev) => { ev.stopPropagation(); openDrawer(); });
-  drawerClose?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
-  drawerBackdrop?.addEventListener('click', (ev) => { ev.stopPropagation(); closeDrawer(); });
-
   if (themeLightBtn) themeLightBtn.onclick = () => applyTheme('light');
   if (themeDarkBtn) themeDarkBtn.onclick = () => applyTheme('dark');
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
 
-  
-
   onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      try {
+    try {
+      if (user) {
         sessionAccountDoc = await ensureAccountDocForUser(user);
-        setSessionId(sessionAccountDoc.id);
+        setSessionIds(sessionAccountDoc.id, sessionAccountDoc.id);
         updateAccountLink();
         updateCreateButton();
         updateAccountHint();
-        if (sessionAccountDoc.theme) applyTheme(sessionAccountDoc.theme, false);
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      const sid = getUrlSessionId();
-      if (sid) {
-        sessionAccountDoc = await loadAccountById(sid);
-      }
-      updateAccountLink();
-      updateCreateButton();
-      updateAccountHint();
-    }
 
-    await loadPosts();
+        if (sessionAccountDoc.theme) applyTheme(sessionAccountDoc.theme, false);
+      } else {
+        const sid = getUrlSessionId();
+        if (sid) {
+          sessionAccountDoc = await loadAccountById(sid);
+        }
+
+        if (!sessionAccountDoc) {
+          clearSessionIds();
+        }
+
+        updateAccountLink();
+        updateCreateButton();
+        updateAccountHint();
+      }
+
+      await loadPosts();
+    } catch (e) {
+      console.error(e);
+      toastMsg('Błąd inicjalizacji konta.');
+    }
   });
 
   accountLink?.addEventListener('click', async (e) => {
     if (sessionAccountDoc?.id) {
+      e.preventDefault();
       window.location.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(sessionAccountDoc.id)}`;
       return;
     }
+
     e.preventDefault();
     try {
       await signInWithPopup(auth, provider);
     } catch (err) {
-      alert('Błąd logowania: ' + (err && err.message || err));
+      console.error(err);
+      window.location.href = '/login/';
     }
   });
 
@@ -864,7 +834,7 @@ setInterval(updateCountdown, 1000);
     ev.preventDefault();
     if (confirm('Wylogować?')) {
       await signOut(auth);
-      clearSessionId();
+      clearSessionIds();
       sessionAccountDoc = null;
       updateAccountLink();
       updateCreateButton();
