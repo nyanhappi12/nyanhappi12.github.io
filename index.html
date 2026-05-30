@@ -489,83 +489,73 @@
 
   // ----------------------- AUTH -----------------------
   async function ensureAccountDocForUser(user) {
-    const ref = doc(db, 'accounts', user.uid);
-
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        display_name: user.displayName || user.email || 'Użytkownik',
-        createdAt: new Date().toISOString()
-      });
-      return {
-        id: user.uid,
-        display_name: user.displayName || user.email || 'Użytkownik'
-      };
+      const ref = doc(db, 'accounts', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const nickFromEmail = user.email ? user.email.split('@')[0] : null;
+        const created = {
+          display_name: user.displayName || nickFromEmail || 'Użytkownik',
+          email: user.email || null,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(ref, created);
+        return { id: user.uid, ...created };
+      }
+      return { id: snap.id, ...snap.data() };
     }
 
-    return { id: snap.id, ...snap.data() };
+    function updateAccountLink() {
+      if (!accountLink) return;
+      if (accountDoc?.id) {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${accountDoc.display_name || 'Konto'}`;
+        accountLink.href = `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+      } else {
+        accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
+        accountLink.href = '/login/';
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        accountDoc = await ensureAccountDocForUser(user);
+        updateAccountLink();
+        try { if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false); } catch (e) {}
+        try { const u = new URL(window.location.href); u.searchParams.set('sessionid', accountDoc.id); u.searchParams.set('session_id', accountDoc.id); window.history.replaceState({}, '', u.toString()); } catch (e) {}
+      } else {
+        accountDoc = null;
+        updateAccountLink();
+        try { const u = new URL(window.location.href); u.searchParams.delete('sessionid'); u.searchParams.delete('session_id'); window.history.replaceState({}, '', u.toString()); } catch (e) {}
+      }
+    });
+
+    accountLink?.addEventListener('click', async (e) => {
+  if(accountDoc?.id){
+    e.preventDefault();
+
+    window.location.href =
+      `/konto/?sessionid=${encodeURIComponent(accountDoc.id)}&profileid=${encodeURIComponent(accountDoc.id)}`;
+
+    return;
   }
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      try {
-        accountDoc = await ensureAccountDocForUser(user);
-        setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
-        setSessionId(accountDoc.id);
-
-        try {
-          if (accountDoc && accountDoc.theme) applyTheme(accountDoc.theme, false);
-        } catch (e) {}
-      } catch (e) {
-        console.error('fetch account failed', e);
-      }
-      return;
-    }
-
-    const sessionDoc = await bootstrapSessionFromUrl();
-    if (sessionDoc) {
-      accountDoc = sessionDoc;
-      setAccountMenuLabel(accountDoc.display_name || 'Konto', accountDoc.id);
-      return;
-    }
-
-    accountDoc = null;
-    setAccountMenuLabel(null, null);
-    clearSessionId();
-  });
-
-  accountLink?.addEventListener('click', async (e) => {
-    const user = auth.currentUser;
-
-    if (user) {
-      if (accountDoc && accountDoc.id) {
-        window.location.href = `/konto/${accountDoc.id}`;
-      } else {
-        window.location.href = '/konto/';
-      }
-      return;
-    }
-
-    if (accountDoc && accountDoc.id) {
-      window.location.href = `/konto/${accountDoc.id}`;
-      return;
-    }
-
+  try{
     e.preventDefault();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      alert('Błąd logowania: ' + (err && err.message || err));
-    }
-  });
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    console.error(err);
 
-  accountLink?.addEventListener('contextmenu', async (ev) => {
-    ev.preventDefault();
-    if (confirm('Wylogować?')) {
-      await signOut(auth);
-      alert('Wylogowano');
-    }
-  });
+    // fallback
+    window.location.href = '/login/';
+  }
+});
+    accountLink?.addEventListener('contextmenu', async (ev) => {
+      ev.preventDefault();
+      if (confirm('Wylogować?')) {
+        await signOut(auth);
+        try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+        alert('Wylogowano');
+      }
+    });
 
   // ----------------------- CLOUDINARY HELPER -----------------------
   async function uploadToCloudinary(file) {
