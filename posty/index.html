@@ -557,17 +557,6 @@ setInterval(updateCountdown, 1000);
     return sessionAccountDoc?.display_name || sessionAccountDoc?.email?.split('@')[0] || 'Konto';
   }
 
-  function updateAccountLink() {
-    if (!accountLink) return;
-    if (sessionAccountDoc?.id) {
-      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>${safeText(accountLabel(), 'Konto')}`;
-      accountLink.href = `/konto/?sessionid=${encodeURIComponent(sessionAccountDoc.id)}&profileid=${encodeURIComponent(sessionAccountDoc.id)}`;
-    } else {
-      accountLink.innerHTML = `<span class="material-symbols-rounded">account_circle</span>Konto`;
-      accountLink.href = '/login/';
-    }
-  }
-
   function normalizePost(docSnap) {
     const data = docSnap.data() || {};
     const title = safeText(data.title || data.name || 'Bez tytułu', docSnap.id);
